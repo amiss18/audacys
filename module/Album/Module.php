@@ -1,10 +1,23 @@
-
 <?php
-
+// module/Album/Module.php
 namespace Album;
-
+// Add this import statement:
+use Album\Model\AlbumTable;
 class Module
 {
+	 // Add this method:
+    public function getServiceConfig()
+    {
+        return array(
+            'factories' => array(
+                'Album\Model\AlbumTable' =>  function($sm) {
+                    $dbAdapter = $sm->get('Zend\Db\Adapter\Adapter');
+                    $table     = new AlbumTable($dbAdapter);
+                    return $table;
+                },
+            ),
+        );
+    }
     public function getAutoloaderConfig()
     {
         return array(
