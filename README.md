@@ -21,27 +21,29 @@ If composer.phar is not already installed
 Using Git submodules
 ----------------------------
     cd my/project/dir
-    https://github.com/bashantad/zend-framework2.git
+    https://github.com/amiss18/audacys.git
     cd zend-framework2
 Database
 ------------
-create database and run the following sql
-CREATE TABLE album (
-  id int(11) NOT NULL auto_increment,
-  artist varchar(100) NOT NULL,
-  title varchar(100) NOT NULL,
-  PRIMARY KEY (id)
-);
-INSERT INTO album (artist, title)
-    VALUES  ('The  Military  Wives',  'In  My  Dreams');
-INSERT INTO album (artist, title)
-    VALUES  ('Adele',  '21');
-INSERT INTO album (artist, title)
-    VALUES  ('Bruce  Springsteen',  'Wrecking Ball (Deluxe)');
-INSERT INTO album (artist, title)
-    VALUES  ('Lana  Del  Rey',  'Born  To  Die');
-INSERT INTO album (artist, title)
-    VALUES  ('Gotye',  'Making  Mirrors');
+
+DROP TABLE IF EXISTS `album`;
+CREATE TABLE IF NOT EXISTS `album` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `artist` varchar(100) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
+--
+-- Dumping data for table `album`
+--
+
+INSERT INTO `album` (`id`, `artist`, `title`) VALUES
+(1, 'Adele', '21'),
+(2, 'Bruce Springsteen', 'Wrecking Ball (Deluxe)'),
+(3, 'Lana Del Rey', 'Born To Die'),
+(4, 'Gotye', 'Making Mirrors'),
+(5, 'The Military Wives', 'In My Dreams');
     
  Change Database Configuration at 
  config/autoload/global.php:  and 
