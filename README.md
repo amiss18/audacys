@@ -26,6 +26,7 @@ INSERT INTO `album` (`id`, `artist`, `title`) VALUES
 (4, 'Gotye', 'Making Mirrors'),
 (5, 'The Military Wives', 'In My Dreams');
 `    
+---------------------------------------------------------
  Change Database Configuration at 
  config/autoload/global.php:  and 
  config/autoload/local.php:
