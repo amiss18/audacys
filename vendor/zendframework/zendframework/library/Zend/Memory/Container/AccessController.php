@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Memory
  */
 
 namespace Zend\Memory\Container;
@@ -21,9 +20,6 @@ namespace Zend\Memory\Container;
  * out of scope or unset operation.
  *
  * Class also provides Zend\Memory\Container interface and works as proxy for such cases.
- *
- * @category   Zend
- * @package    Zend_Memory
  */
 class AccessController implements ContainerInterface
 {
@@ -33,7 +29,6 @@ class AccessController implements ContainerInterface
      * @var Movable
      */
     private $memContainer;
-
 
     /**
      * Object constructor
@@ -52,7 +47,6 @@ class AccessController implements ContainerInterface
     {
         $this->memContainer->destroy();
     }
-
 
     /**
      * Get string value reference
@@ -85,7 +79,6 @@ class AccessController implements ContainerInterface
         $this->memContainer->lock();
     }
 
-
     /**
      * Unlock object
      */
@@ -97,7 +90,7 @@ class AccessController implements ContainerInterface
     /**
      * Return true if object is locked
      *
-     * @return boolean
+     * @return bool
      */
     public function isLocked()
     {

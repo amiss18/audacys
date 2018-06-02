@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Writer\Extension\ITunes\Renderer;
@@ -15,12 +14,9 @@ use DOMElement;
 use Zend\Feed\Writer\Extension;
 
 /**
-* @category Zend
-* @package Zend_Feed_Writer
 */
 class Feed extends Extension\AbstractRenderer
 {
-
     /**
      * Set to TRUE if a rendering method actually renders something. This
      * is used to prevent premature appending of a XML namespace declaration
@@ -119,7 +115,7 @@ class Feed extends Extension\AbstractRenderer
         if (!$cats || empty($cats)) {
             return;
         }
-        foreach ($cats as $key=>$cat) {
+        foreach ($cats as $key => $cat) {
             if (!is_array($cat)) {
                 $el = $dom->createElement('itunes:category');
                 $el->setAttribute('text', $cat);

@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Serializer
  */
 
 namespace Zend\Serializer\Adapter;
@@ -16,9 +15,6 @@ use Zend\Stdlib\ErrorHandler;
 /**
  * @link       http://www.infoloom.com/gcaconfs/WEB/chicago98/simeonov.HTM
  * @link       http://en.wikipedia.org/wiki/WDDX
- * @category   Zend
- * @package    Zend_Serializer
- * @subpackage Adapter
  */
 class Wddx extends AbstractAdapter
 {
@@ -129,7 +125,7 @@ class Wddx extends AbstractAdapter
                 //$simpleXml = new \SimpleXMLElement($wddx);
                 libxml_disable_entity_loader($oldLibxmlDisableEntityLoader);
                 if (isset($simpleXml->data[0]->null[0])) {
-                    return null; // valid null
+                    return; // valid null
                 }
                 throw new Exception\RuntimeException('Unserialization failed: Invalid wddx packet');
             } catch (\Exception $e) {

@@ -3,20 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Protocol;
 
 use Zend\Stdlib\ErrorHandler;
 
-/**
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Protocol
- */
 class Pop3
 {
     /**
@@ -42,7 +36,6 @@ class Pop3
      */
     protected $timestamp;
 
-
     /**
      * Public constructor
      *
@@ -57,7 +50,6 @@ class Pop3
         }
     }
 
-
     /**
      * Public destructor
      */
@@ -65,7 +57,6 @@ class Pop3
     {
         $this->logout();
     }
-
 
     /**
      * Open connection to POP3 server
@@ -78,12 +69,26 @@ class Pop3
      */
     public function connect($host, $port = null, $ssl = false)
     {
-        if ($ssl == 'SSL') {
-            $host = 'ssl://' . $host;
+        $isTls = false;
+
+        if ($ssl) {
+            $ssl = strtolower($ssl);
         }
 
-        if ($port === null) {
-            $port = $ssl == 'SSL' ? 995 : 110;
+        switch ($ssl) {
+            case 'ssl':
+                $host = 'ssl://' . $host;
+                if (!$port) {
+                    $port = 995;
+                }
+                break;
+            case 'tls':
+                $isTls = true;
+                // break intentionally omitted
+            default:
+                if (!$port) {
+                    $port = 110;
+                }
         }
 
         ErrorHandler::start();
@@ -91,7 +96,7 @@ class Pop3
         $error = ErrorHandler::stop();
         if (!$this->socket) {
             throw new Exception\RuntimeException(sprintf(
-                'cannot connect to host%s',
+                'cannot connect to host %s',
                 ($error ? sprintf('; error = %s (errno = %d )', $error->getMessage(), $error->getCode()) : '')
             ), 0, $error);
         }
@@ -106,7 +111,7 @@ class Pop3
             $this->timestamp = '<' . $this->timestamp . '>';
         }
 
-        if ($ssl === 'TLS') {
+        if ($isTls) {
             $this->request('STLS');
             $result = stream_socket_enable_crypto($this->socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
             if (!$result) {
@@ -116,7 +121,6 @@ class Pop3
 
         return $welcome;
     }
-
 
     /**
      * Send a request
@@ -134,11 +138,10 @@ class Pop3
         }
     }
 
-
     /**
      * read a response
      *
-     * @param  boolean $multiline response has multiple lines and should be read until "<nl>.<nl>"
+     * @param  bool $multiline response has multiple lines and should be read until "<nl>.<nl>"
      * @throws Exception\RuntimeException
      * @return string response
      */
@@ -178,7 +181,6 @@ class Pop3
         return $message;
     }
 
-
     /**
      * Send request and get response
      *
@@ -193,7 +195,6 @@ class Pop3
         $this->sendRequest($request);
         return $this->readResponse($multiline);
     }
-
 
     /**
      * End communication with POP3 server (also closes socket)
@@ -237,13 +238,14 @@ class Pop3
         if ($tryApop && $this->timestamp) {
             try {
                 $this->request("APOP $user " . md5($this->timestamp . $password));
+                return;
             } catch (Exception\ExceptionInterface $e) {
                 // ignore
             }
         }
 
-        $result = $this->request("USER $user");
-        $result = $this->request("PASS $password");
+        $this->request("USER $user");
+        $this->request("PASS $password");
     }
 
 
@@ -275,7 +277,7 @@ class Pop3
             $result = $this->request("LIST $msgno");
 
             list(, $result) = explode(' ', $result);
-            return (int)$result;
+            return (int) $result;
         }
 
         $result = $this->request('LIST', true);
@@ -283,7 +285,7 @@ class Pop3
         $line = strtok($result, "\n");
         while ($line) {
             list($no, $size) = explode(' ', trim($line));
-            $messages[(int)$no] = (int)$size;
+            $messages[(int) $no] = (int) $size;
             $line = strtok("\n");
         }
 
@@ -315,7 +317,7 @@ class Pop3
                 continue;
             }
             list($no, $id) = explode(' ', trim($line), 2);
-            $messages[(int)$no] = $id;
+            $messages[(int) $no] = $id;
         }
 
         return $messages;
@@ -347,7 +349,7 @@ class Pop3
         }
         $this->hasTop = true;
 
-        $lines = (!$lines || $lines < 1) ? 0 : (int)$lines;
+        $lines = (!$lines || $lines < 1) ? 0 : (int) $lines;
 
         try {
             $result = $this->request("TOP $msgno $lines", true);
@@ -362,7 +364,6 @@ class Pop3
 
         return $result;
     }
-
 
     /**
      * Make a RETR call for retrieving a full message with headers and body
@@ -384,7 +385,6 @@ class Pop3
         $this->request('NOOP');
     }
 
-
     /**
      * Make a DELE count to remove a message
      *
@@ -394,7 +394,6 @@ class Pop3
     {
         $this->request("DELE $msgno");
     }
-
 
     /**
      * Make RSET call, which rollbacks delete requests

@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Adapter\Driver\Pdo;
@@ -15,13 +14,9 @@ use Zend\Db\Adapter\Driver\DriverInterface;
 use Zend\Db\Adapter\Driver\Feature\AbstractFeature;
 use Zend\Db\Adapter\Driver\Feature\DriverFeatureInterface;
 use Zend\Db\Adapter\Exception;
+use Zend\Db\Adapter\Profiler;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Adapter
- */
-class Pdo implements DriverInterface, DriverFeatureInterface
+class Pdo implements DriverInterface, DriverFeatureInterface, Profiler\ProfilerAwareInterface
 {
     /**
      * @const
@@ -75,6 +70,30 @@ class Pdo implements DriverInterface, DriverFeatureInterface
     }
 
     /**
+     * @param Profiler\ProfilerInterface $profiler
+     * @return Pdo
+     */
+    public function setProfiler(Profiler\ProfilerInterface $profiler)
+    {
+        $this->profiler = $profiler;
+        if ($this->connection instanceof Profiler\ProfilerAwareInterface) {
+            $this->connection->setProfiler($profiler);
+        }
+        if ($this->statementPrototype instanceof Profiler\ProfilerAwareInterface) {
+            $this->statementPrototype->setProfiler($profiler);
+        }
+        return $this;
+    }
+
+    /**
+     * @return null|Profiler\ProfilerInterface
+     */
+    public function getProfiler()
+    {
+        return $this->profiler;
+    }
+
+    /**
      * Register connection
      *
      * @param  Connection $connection
@@ -109,6 +128,8 @@ class Pdo implements DriverInterface, DriverFeatureInterface
     }
 
     /**
+     * Add feature
+     *
      * @param string $name
      * @param AbstractFeature $feature
      * @return Pdo
@@ -124,17 +145,24 @@ class Pdo implements DriverInterface, DriverFeatureInterface
     }
 
     /**
-     * setup the default features for Pdo
+     * Setup the default features for Pdo
+     *
+     * @return Pdo
      */
     public function setupDefaultFeatures()
     {
-        if ($this->connection->getDriverName() == 'sqlite') {
+        $driverName = $this->connection->getDriverName();
+        if ($driverName == 'sqlite') {
             $this->addFeature(null, new Feature\SqliteRowCounter);
+        } elseif ($driverName == 'oci') {
+            $this->addFeature(null, new Feature\OracleRowCounter);
         }
         return $this;
     }
 
     /**
+     * Get feature
+     *
      * @param $name
      * @return AbstractFeature|false
      */
@@ -159,6 +187,11 @@ class Pdo implements DriverInterface, DriverFeatureInterface
             switch ($name) {
                 case 'pgsql':
                     return 'Postgresql';
+                case 'oci':
+                    return 'Oracle';
+                case 'dblib':
+                case 'sqlsrv':
+                    return 'SqlServer';
                 default:
                     return ucfirst($name);
             }
@@ -170,6 +203,11 @@ class Pdo implements DriverInterface, DriverFeatureInterface
                     return 'MySQL';
                 case 'pgsql':
                     return 'PostgreSQL';
+                case 'oci':
+                    return 'Oracle';
+                case 'dblib':
+                case 'sqlsrv':
+                    return 'SQLServer';
                 default:
                     return ucfirst($name);
             }
@@ -232,6 +270,14 @@ class Pdo implements DriverInterface, DriverFeatureInterface
             $rowCount = $sqliteRowCounter->getRowCountClosure($context);
         }
 
+        // special feature, oracle PDO counter
+        if ($this->connection->getDriverName() == 'oci'
+            && ($oracleRowCounter = $this->getFeature('OracleRowCounter'))
+            && $resource->columnCount() > 0) {
+            $rowCount = $oracleRowCounter->getRowCountClosure($context);
+        }
+
+
         $result->initialize($resource, $this->connection->getLastGeneratedValue(), $rowCount);
         return $result;
     }
@@ -251,19 +297,18 @@ class Pdo implements DriverInterface, DriverFeatureInterface
      */
     public function formatParameterName($name, $type = null)
     {
-        if ($type == null && !is_numeric($name) || $type == self::PARAMETERIZATION_NAMED) {
+        if ($type === null && !is_numeric($name) || $type == self::PARAMETERIZATION_NAMED) {
             return ':' . $name;
-        } else {
-            return '?';
         }
+
+        return '?';
     }
 
     /**
      * @return mixed
      */
-    public function getLastGeneratedValue()
+    public function getLastGeneratedValue($name = null)
     {
-        return $this->connection->getLastGeneratedValue();
+        return $this->connection->getLastGeneratedValue($name);
     }
-
 }

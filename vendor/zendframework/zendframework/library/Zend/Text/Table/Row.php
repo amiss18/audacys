@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Text
  */
 
 namespace Zend\Text\Table;
@@ -14,9 +13,6 @@ use Zend\Text\Table\Decorator\DecoratorInterface as Decorator;
 
 /**
  * Row class for Zend\Text\Table
- *
- * @category  Zend
- * @package   Zend_Text_Table
  */
 class Row
 {
@@ -76,13 +72,13 @@ class Row
      *
      * Returns null, when the index is out of range
      *
-     * @param  integer $index
+     * @param  int $index
      * @return Column|null
      */
     public function getColumn($index)
     {
         if (!isset($this->columns[$index])) {
-            return null;
+            return;
         }
 
         return $this->columns[$index];
@@ -102,12 +98,14 @@ class Row
      * Get the widths of all columns, which were rendered last
      *
      * @throws Exception\UnexpectedValueException When no columns were rendered yet
-     * @return integer
+     * @return int
      */
     public function getColumnWidths()
     {
         if ($this->columnWidths === null) {
-            throw new Exception\UnexpectedValueException('render() must be called before columnWidths can be populated');
+            throw new Exception\UnexpectedValueException(
+                'render() must be called before columnWidths can be populated'
+            );
         }
 
         return $this->columnWidths;
@@ -118,7 +116,7 @@ class Row
      *
      * @param  array                               $columnWidths Width of all columns
      * @param  Decorator $decorator    Decorator for the row borders
-     * @param  integer                             $padding      Padding for the columns
+     * @param  int                             $padding      Padding for the columns
      * @throws Exception\OverflowException When there are too many columns
      * @return string
      */
@@ -147,9 +145,7 @@ class Row
             }
 
             // Calculate the column width
-            $columnWidth = ($colSpan - 1 + array_sum(array_slice($columnWidths,
-                                                                 $colNum,
-                                                                 $colSpan)));
+            $columnWidth = ($colSpan - 1 + array_sum(array_slice($columnWidths, $colNum, $colSpan)));
 
             // Render the column and split it's lines into an array
             $result = explode("\n", $column->render($columnWidth, $padding));
@@ -169,8 +165,7 @@ class Row
         // it with an empty column
         if ($colNum < count($columnWidths)) {
             $remainingWidth = (count($columnWidths) - $colNum - 1) +
-                               array_sum(array_slice($columnWidths,
-                                                     $colNum));
+                               array_sum(array_slice($columnWidths, $colNum));
             $renderedColumns[] = array(str_repeat(' ', $remainingWidth));
 
             $this->columnWidths[] = $remainingWidth;

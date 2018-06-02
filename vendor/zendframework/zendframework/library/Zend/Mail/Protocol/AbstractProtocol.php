@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Protocol;
@@ -15,9 +14,6 @@ use Zend\Validator;
 /**
  * Provides low-level methods for concrete adapters to communicate with a remote mail server and track requests and responses.
  *
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Protocol
  * @todo Implement proxy settings
  */
 abstract class AbstractProtocol
@@ -27,7 +23,6 @@ abstract class AbstractProtocol
      */
     const EOL = "\r\n";
 
-
     /**
      * Default timeout in seconds for initiating session
      */
@@ -35,10 +30,9 @@ abstract class AbstractProtocol
 
     /**
      * Maximum of the transaction log
-     * @var integer
+     * @var int
      */
     protected $maximumLog = 64;
-
 
     /**
      * Hostname or IP address of remote server
@@ -46,13 +40,11 @@ abstract class AbstractProtocol
      */
     protected $host;
 
-
     /**
      * Port number of connection
-     * @var integer
+     * @var int
      */
     protected $port;
-
 
     /**
      * Instance of Zend\Validator\ValidatorChain to check hostnames
@@ -60,13 +52,11 @@ abstract class AbstractProtocol
      */
     protected $validHost;
 
-
     /**
      * Socket connection resource
      * @var resource
      */
     protected $socket;
-
 
     /**
      * Last request sent to server
@@ -74,13 +64,11 @@ abstract class AbstractProtocol
      */
     protected $request;
 
-
     /**
      * Array of server responses to last request
      * @var array
      */
     protected $response;
-
 
     /**
      * Log of mail requests and server responses for a session
@@ -88,18 +76,17 @@ abstract class AbstractProtocol
      */
     private $log = array();
 
-
     /**
      * Constructor.
      *
      * @param  string  $host OPTIONAL Hostname of remote connection (default: 127.0.0.1)
-     * @param  integer $port OPTIONAL Port number (default: null)
+     * @param  int $port OPTIONAL Port number (default: null)
      * @throws Exception\RuntimeException
      */
     public function __construct($host = '127.0.0.1', $port = null)
     {
         $this->validHost = new Validator\ValidatorChain();
-        $this->validHost->addValidator(new Validator\Hostname(Validator\Hostname::ALLOW_ALL));
+        $this->validHost->attach(new Validator\Hostname(Validator\Hostname::ALLOW_ALL));
 
         if (!$this->validHost->isValid($host)) {
             throw new Exception\RuntimeException(implode(', ', $this->validHost->getMessages()));
@@ -108,7 +95,6 @@ abstract class AbstractProtocol
         $this->host = $host;
         $this->port = $port;
     }
-
 
     /**
      * Class destructor to cleanup open resources
@@ -122,13 +108,12 @@ abstract class AbstractProtocol
     /**
      * Set the maximum log size
      *
-     * @param integer $maximumLog Maximum log size
+     * @param int $maximumLog Maximum log size
      */
     public function setMaximumLog($maximumLog)
     {
         $this->maximumLog = (int) $maximumLog;
     }
-
 
     /**
      * Get the maximum log size
@@ -140,14 +125,12 @@ abstract class AbstractProtocol
         return $this->maximumLog;
     }
 
-
     /**
      * Create a connection to the remote host
      *
      * Concrete adapters for this class will implement their own unique connect scripts, using the _connect() method to create the socket resource.
      */
     abstract public function connect();
-
 
     /**
      * Retrieve the last client request
@@ -159,7 +142,6 @@ abstract class AbstractProtocol
         return $this->request;
     }
 
-
     /**
      * Retrieve the last server response
      *
@@ -170,7 +152,6 @@ abstract class AbstractProtocol
         return $this->response;
     }
 
-
     /**
      * Retrieve the transaction log
      *
@@ -180,7 +161,6 @@ abstract class AbstractProtocol
     {
         return implode('', $this->log);
     }
-
 
     /**
      * Reset the transaction log
@@ -212,7 +192,7 @@ abstract class AbstractProtocol
      *
      * @param  string $remote Remote
      * @throws Exception\RuntimeException
-     * @return boolean
+     * @return bool
      */
     protected function _connect($remote)
     {
@@ -236,7 +216,6 @@ abstract class AbstractProtocol
         return $result;
     }
 
-
     /**
      * Disconnect from remote host and free resource
      *
@@ -248,13 +227,12 @@ abstract class AbstractProtocol
         }
     }
 
-
     /**
      * Send the given request followed by a LINEEND to the server.
      *
      * @param  string $request
      * @throws Exception\RuntimeException
-     * @return integer|boolean Number of bytes written to remote host
+     * @return int|bool Number of bytes written to remote host
      */
     protected function _send($request)
     {
@@ -276,11 +254,10 @@ abstract class AbstractProtocol
         return $result;
     }
 
-
     /**
      * Get a line from the stream.
      *
-     * @param  integer $timeout Per-request timeout value if applicable
+     * @param  int $timeout Per-request timeout value if applicable
      * @throws Exception\RuntimeException
      * @return string
      */
@@ -292,7 +269,7 @@ abstract class AbstractProtocol
 
         // Adapters may wish to supply per-commend timeouts according to appropriate RFC
         if ($timeout !== null) {
-           stream_set_timeout($this->socket, $timeout);
+            stream_set_timeout($this->socket, $timeout);
         }
 
         // Retrieve response
@@ -315,24 +292,20 @@ abstract class AbstractProtocol
         return $response;
     }
 
-
     /**
      * Parse server response for successful codes
      *
      * Read the response from the stream and check for expected return code.
-     * Throws a Zend_Mail_Protocol_Exception if an unexpected code is returned.
+     * Throws a Zend\Mail\Protocol\Exception\ExceptionInterface if an unexpected code is returned.
      *
      * @param  string|array $code One or more codes that indicate a successful response
-     * @param  integer $timeout Per-request timeout value if applicable
+     * @param  int $timeout Per-request timeout value if applicable
      * @throws Exception\RuntimeException
      * @return string Last line of response string
      */
     protected function _expect($code, $timeout = null)
     {
         $this->response = array();
-        $cmd  = '';
-        $more = '';
-        $msg  = '';
         $errMsg = '';
 
         if (!is_array($code)) {
@@ -348,7 +321,6 @@ abstract class AbstractProtocol
             } elseif ($cmd === null || !in_array($cmd, $code)) {
                 $errMsg =  $msg;
             }
-
         } while (strpos($more, '-') === 0); // The '-' message prefix indicates an information string instead of a response string.
 
         if ($errMsg !== '') {

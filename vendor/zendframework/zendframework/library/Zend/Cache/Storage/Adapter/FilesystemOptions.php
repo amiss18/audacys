@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Cache
  */
 
 namespace Zend\Cache\Storage\Adapter;
@@ -15,14 +14,9 @@ use Zend\Cache\Exception;
 
 /**
  * These are options specific to the Filesystem adapter
- *
- * @category   Zend
- * @package    Zend_Cache
- * @subpackage Storage
  */
 class FilesystemOptions extends AdapterOptions
 {
-
     /**
      * Directory to store cache files
      *
@@ -34,7 +28,7 @@ class FilesystemOptions extends AdapterOptions
     /**
      * Call clearstatcache enabled?
      *
-     * @var boolean
+     * @var bool
      */
     protected $clearStatCache = true;
 
@@ -55,7 +49,7 @@ class FilesystemOptions extends AdapterOptions
     /**
      * Lock files on writing
      *
-     * @var boolean
+     * @var bool
      */
     protected $fileLocking = true;
 
@@ -85,14 +79,14 @@ class FilesystemOptions extends AdapterOptions
     /**
      * Don't get 'fileatime' as 'atime' on metadata
      *
-     * @var boolean
+     * @var bool
      */
     protected $noAtime = true;
 
     /**
      * Don't get 'filectime' as 'ctime' on metadata
      *
-     * @var boolean
+     * @var bool
      */
     protected $noCtime = true;
 
@@ -145,7 +139,7 @@ class FilesystemOptions extends AdapterOptions
                 );
             }
 
-            $cacheDir = rtrim(realpath($cacheDir), \DIRECTORY_SEPARATOR);
+            $cacheDir = rtrim(realpath($cacheDir), DIRECTORY_SEPARATOR);
         } else {
             $cacheDir = sys_get_temp_dir();
         }
@@ -440,7 +434,7 @@ class FilesystemOptions extends AdapterOptions
             }
 
             // normalize
-            $umask = $umask & 0777;
+            $umask = $umask & ~0002;
         }
 
         if ($this->umask !== $umask) {

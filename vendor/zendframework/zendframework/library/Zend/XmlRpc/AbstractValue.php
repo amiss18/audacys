@@ -3,15 +3,13 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_XmlRpc
  */
 
 namespace Zend\XmlRpc;
 
 use DateTime;
-use Zend\Math\BigInteger;
 
 /**
  * Represent a native XML-RPC value entity, used as parameters for the methods
@@ -21,9 +19,7 @@ use Zend\Math\BigInteger;
  * function acts likes a factory for the Zend\XmlRpc\Value objects
  *
  * Using this function, users/Zend\XmlRpc\Client object can create the Zend\XmlRpc\Value objects
- * from PHP variables, XML string or by specifying the exact XML-RPC natvie type
- *
- * @package    Zend_XmlRpc
+ * from PHP variables, XML string or by specifying the exact XML-RPC native type
  */
 abstract class AbstractValue
 {
@@ -95,15 +91,15 @@ abstract class AbstractValue
      */
     public static function getGenerator()
     {
-        if (!self::$generator) {
+        if (!static::$generator) {
             if (extension_loaded('xmlwriter')) {
-                self::$generator = new Generator\XmlWriter();
+                static::$generator = new Generator\XmlWriter();
             } else {
-                self::$generator = new Generator\DomDocument();
+                static::$generator = new Generator\DomDocument();
             }
         }
 
-        return self::$generator;
+        return static::$generator;
     }
 
     /**
@@ -114,7 +110,7 @@ abstract class AbstractValue
      */
     public static function setGenerator(Generator\GeneratorInterface $generator = null)
     {
-        self::$generator = $generator;
+        static::$generator = $generator;
     }
 
     /**
@@ -125,9 +121,9 @@ abstract class AbstractValue
      */
     public static function setEncoding($encoding)
     {
-        $generator    = self::getGenerator();
+        $generator    = static::getGenerator();
         $newGenerator = new $generator($encoding);
-        self::setGenerator($newGenerator);
+        static::setGenerator($newGenerator);
     }
 
     /**
@@ -182,11 +178,11 @@ abstract class AbstractValue
         switch ($type) {
             case self::AUTO_DETECT_TYPE:
                 // Auto detect the XML-RPC native type from the PHP type of $value
-                return self::_phpVarToNativeXmlRpc($value);
+                return static::_phpVarToNativeXmlRpc($value);
 
             case self::XML_STRING:
                 // Parse the XML string given in $value and get the XML-RPC value in it
-                return self::_xmlStringToNativeXmlRpc($value);
+                return static::_xmlStringToNativeXmlRpc($value);
 
             case self::XMLRPC_TYPE_I4:
                 // fall through to the next case
@@ -205,7 +201,7 @@ abstract class AbstractValue
                 return new Value\Boolean($value);
 
             case self::XMLRPC_TYPE_STRING:
-                return new Value\String($value);
+                return new Value\Text($value);
 
             case self::XMLRPC_TYPE_BASE64:
                 return new Value\Base64($value);
@@ -245,7 +241,7 @@ abstract class AbstractValue
             } elseif ($value instanceof DateTime) {
                 return self::XMLRPC_TYPE_DATETIME;
             }
-            return self::getXmlRpcTypeByValue(get_object_vars($value));
+            return static::getXmlRpcTypeByValue(get_object_vars($value));
         } elseif (is_array($value)) {
             if (!empty($value) && is_array($value) && (array_keys($value) !== range(0, count($value) - 1))) {
                 return self::XMLRPC_TYPE_STRUCT;
@@ -257,7 +253,7 @@ abstract class AbstractValue
             return self::XMLRPC_TYPE_DOUBLE;
         } elseif (is_bool($value)) {
             return self::XMLRPC_TYPE_BOOLEAN;
-        } elseif (is_null($value)) {
+        } elseif (null === $value) {
             return self::XMLRPC_TYPE_NIL;
         } elseif (is_string($value)) {
             return self::XMLRPC_TYPE_STRING;
@@ -280,20 +276,11 @@ abstract class AbstractValue
     protected static function _phpVarToNativeXmlRpc($value)
     {
         // @see http://framework.zend.com/issues/browse/ZF-8623
-        if (is_object($value)) {
-            if ($value instanceof AbstractValue) {
-                return $value;
-            }
-            if ($value instanceof BigInteger) {
-                throw new Exception\InvalidArgumentException(
-                    'Using Zend\Math\BigInteger to get an ' .
-                    'instance of Value_BigInteger is not ' .
-                    'available anymore.'
-                );
-            }
+        if ($value instanceof AbstractValue) {
+            return $value;
         }
 
-        switch (self::getXmlRpcTypeByValue($value)) {
+        switch (static::getXmlRpcTypeByValue($value)) {
             case self::XMLRPC_TYPE_DATETIME:
                 return new Value\DateTime($value);
 
@@ -319,7 +306,7 @@ abstract class AbstractValue
                 // Fall through to the next case
             default:
                 // If type isn't identified (or identified as string), it treated as string
-                return new Value\String($value);
+                return new Value\Text($value);
         }
     }
 
@@ -335,9 +322,9 @@ abstract class AbstractValue
      */
     protected static function _xmlStringToNativeXmlRpc($xml)
     {
-        self::_createSimpleXMLElement($xml);
+        static::_createSimpleXMLElement($xml);
 
-        self::_extractTypeAndValue($xml, $type, $value);
+        static::_extractTypeAndValue($xml, $type, $value);
 
         switch ($type) {
             // All valid and known XML-RPC native values
@@ -358,9 +345,9 @@ abstract class AbstractValue
                 $xmlrpcValue = new Value\Boolean($value);
                 break;
             case self::XMLRPC_TYPE_STRING:
-                $xmlrpcValue = new Value\String($value);
+                $xmlrpcValue = new Value\Text($value);
                 break;
-            case self::XMLRPC_TYPE_DATETIME:  // The value should already be in a iso8601 format
+            case self::XMLRPC_TYPE_DATETIME:  // The value should already be in an iso8601 format
                 $xmlrpcValue = new Value\DateTime($value);
                 break;
             case self::XMLRPC_TYPE_BASE64:    // The value should already be base64 encoded
@@ -384,13 +371,17 @@ abstract class AbstractValue
                 }
 
                 if (null === $data) {
-                    throw new Exception\ValueException('Invalid XML for XML-RPC native '. self::XMLRPC_TYPE_ARRAY .' type: ARRAY tag must contain DATA tag');
+                    throw new Exception\ValueException(
+                        'Invalid XML for XML-RPC native '
+                        . self::XMLRPC_TYPE_ARRAY
+                        . ' type: ARRAY tag must contain DATA tag'
+                    );
                 }
                 $values = array();
                 // Parse all the elements of the array from the XML string
                 // (simple xml element) to Value objects
                 foreach ($data->value as $element) {
-                    $values[] = self::_xmlStringToNativeXmlRpc($element);
+                    $values[] = static::_xmlStringToNativeXmlRpc($element);
                 }
                 $xmlrpcValue = new Value\ArrayValue($values);
                 break;
@@ -403,14 +394,15 @@ abstract class AbstractValue
                     // Maybe we want to throw an exception here ?
                     if (!isset($member->value) or !isset($member->name)) {
                         continue;
-                        //throw new Value_Exception('Member of the '. self::XMLRPC_TYPE_STRUCT .' XML-RPC native type must contain a VALUE tag');
                     }
-                    $values[(string)$member->name] = self::_xmlStringToNativeXmlRpc($member->value);
+                    $values[(string) $member->name] = static::_xmlStringToNativeXmlRpc($member->value);
                 }
                 $xmlrpcValue = new Value\Struct($values);
                 break;
             default:
-                throw new Exception\ValueException('Value type \''. $type .'\' parsed from the XML string is not a known XML-RPC native type');
+                throw new Exception\ValueException(
+                    'Value type \'' . $type . '\' parsed from the XML string is not a known XML-RPC native type'
+                );
                 break;
         }
         $xmlrpcValue->_setXML($xml->asXML());
@@ -428,7 +420,11 @@ abstract class AbstractValue
             $xml = new \SimpleXMLElement($xml);
         } catch (\Exception $e) {
             // The given string is not a valid XML
-            throw new Exception\ValueException('Failed to create XML-RPC value from XML string: ' . $e->getMessage(), $e->getCode(), $e);
+            throw new Exception\ValueException(
+                'Failed to create XML-RPC value from XML string: ' . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
         }
     }
 
@@ -442,7 +438,9 @@ abstract class AbstractValue
      */
     protected static function _extractTypeAndValue(\SimpleXMLElement $xml, &$type, &$value)
     {
-        list($type, $value) = each($xml);
+        // Casting is necessary to work with strict-typed systems
+        $xmlAsArray = (array) $xml;
+        list($type, $value) = each($xmlAsArray);
         if (!$type and $value === null) {
             $namespaces = array('ex' => 'http://ws.apache.org/xmlrpc/namespaces/extensions');
             foreach ($namespaces as $namespaceName => $namespaceUri) {
@@ -458,6 +456,9 @@ abstract class AbstractValue
         // If no type was specified, the default is string
         if (!$type) {
             $type = self::XMLRPC_TYPE_STRING;
+            if (empty($value) and preg_match('#^<value>.*</value>$#', $xml->asXML())) {
+                $value = str_replace(array('<value>', '</value>'), '', $xml->asXML());
+            }
         }
     }
 

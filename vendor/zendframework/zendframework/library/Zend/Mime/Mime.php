@@ -3,18 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mime
  */
 
 namespace Zend\Mime;
 
 /**
  * Support class for MultiPart Mime Messages
- *
- * @category   Zend
- * @package    Zend_Mime
  */
 class Mime
 {
@@ -59,7 +55,7 @@ class Mime
         "\xEF","\xF0","\xF1","\xF2","\xF3","\xF4","\xF5","\xF6",
         "\xF7","\xF8","\xF9","\xFA","\xFB","\xFC","\xFD","\xFE",
         "\xFF"
-        );
+    );
 
     public static $qpReplaceValues = array(
         "=00","=01","=02","=03","=04","=05","=06","=07",
@@ -83,7 +79,7 @@ class Mime
         "=EF","=F0","=F1","=F2","=F3","=F4","=F5","=F6",
         "=F7","=F8","=F9","=FA","=FB","=FC","=FD","=FE",
         "=FF"
-        );
+    );
 
     public static $qpKeysString =
          "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x7F\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9A\x9B\x9C\x9D\x9E\x9F\xA0\xA1\xA2\xA3\xA4\xA5\xA6\xA7\xA8\xA9\xAA\xAB\xAC\xAD\xAE\xAF\xB0\xB1\xB2\xB3\xB4\xB5\xB6\xB7\xB8\xB9\xBA\xBB\xBC\xBD\xBE\xBF\xC0\xC1\xC2\xC3\xC4\xC5\xC6\xC7\xC8\xC9\xCA\xCB\xCC\xCD\xCE\xCF\xD0\xD1\xD2\xD3\xD4\xD5\xD6\xD7\xD8\xD9\xDA\xDB\xDC\xDD\xDE\xDF\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\xEC\xED\xEE\xEF\xF0\xF1\xF2\xF3\xF4\xF5\xF6\xF7\xF8\xF9\xFA\xFB\xFC\xFD\xFE\xFF";
@@ -95,11 +91,11 @@ class Mime
      * false, encode the string for secure delivery.
      *
      * @param string $str
-     * @return boolean
+     * @return bool
      */
     public static function isPrintable($str)
     {
-        return (strcspn($str, self::$qpKeysString) == strlen($str));
+        return (strcspn($str, static::$qpKeysString) == strlen($str));
     }
 
     /**
@@ -154,7 +150,7 @@ class Mime
     private static function _encodeQuotedPrintable($str)
     {
         $str = str_replace('=', '=3D', $str);
-        $str = str_replace(self::$qpKeys, self::$qpReplaceValues, $str);
+        $str = str_replace(static::$qpKeys, static::$qpReplaceValues, $str);
         $str = rtrim($str);
         return $str;
     }
@@ -185,34 +181,35 @@ class Mime
         $str = str_replace(array('?', ' ', '_'), array('=3F', '=20', '=5F'), $str);
 
         // initialize first line, we need it anyways
-        $lines = array(0 => "");
+        $lines = array(0 => '');
 
         // Split encoded text into separate lines
-        $tmp = "";
+        $tmp = '';
         while (strlen($str) > 0) {
-            $currentLine = max(count($lines)-1, 0);
-            $token       = self::getNextQuotedPrintableToken($str);
-            $str         = substr($str, strlen($token));
+            $currentLine = max(count($lines) - 1, 0);
+            $token       = static::getNextQuotedPrintableToken($str);
+            $substr      = substr($str, strlen($token));
+            $str         = (false === $substr) ? '' : $substr;
 
             $tmp .= $token;
-            if ($token == '=20') {
+            if ($token === '=20') {
                 // only if we have a single char token or space, we can append the
                 // tempstring it to the current line or start a new line if necessary.
                 if (strlen($lines[$currentLine] . $tmp) > $lineLength) {
-                    $lines[$currentLine+1] = $tmp;
+                    $lines[$currentLine + 1] = $tmp;
                 } else {
                     $lines[$currentLine] .= $tmp;
                 }
-                $tmp = "";
+                $tmp = '';
             }
             // don't forget to append the rest to the last line
-            if (strlen($str) == 0) {
+            if (strlen($str) === 0) {
                 $lines[$currentLine] .= $tmp;
             }
         }
 
         // assemble the lines together by pre- and appending delimiters, charset, encoding.
-        for ($i = 0; $i < count($lines); $i++) {
+        for ($i = 0, $count = count($lines); $i < $count; $i++) {
             $lines[$i] = " " . $prefix . $lines[$i] . "?=";
         }
         $str = trim(implode($lineEnd, $lines));
@@ -227,7 +224,7 @@ class Mime
      */
     private static function getNextQuotedPrintableToken($str)
     {
-        if (substr($str, 0, 1) == "=") {
+        if (substr($str, 0, 1) === "=") {
             $token = substr($str, 0, 3);
         } else {
             $token = substr($str, 0, 1);
@@ -253,7 +250,7 @@ class Mime
         $suffix = '?=';
         $remainingLength = $lineLength - strlen($prefix) - strlen($suffix);
 
-        $encodedValue = self::encodeBase64($str, $remainingLength, $lineEnd);
+        $encodedValue = static::encodeBase64($str, $remainingLength, $lineEnd);
         $encodedValue = str_replace($lineEnd, $suffix . $lineEnd . ' ' . $prefix, $encodedValue);
         $encodedValue = $prefix . $encodedValue . $suffix;
         return $encodedValue;
@@ -285,7 +282,7 @@ class Mime
     {
         // This string needs to be somewhat unique
         if ($boundary === null) {
-            $this->boundary = '=_' . md5(microtime(1) . self::$makeUnique++);
+            $this->boundary = '=_' . md5(microtime(1) . static::$makeUnique++);
         } else {
             $this->boundary = $boundary;
         }
@@ -296,17 +293,17 @@ class Mime
      *
      * @param string $str
      * @param string $encoding
-     * @param string $EOL EOL string; defaults to {@link Zend_Mime::LINEEND}
+     * @param string $EOL EOL string; defaults to {@link LINEEND}
      * @return string
      */
     public static function encode($str, $encoding, $EOL = self::LINEEND)
     {
         switch ($encoding) {
             case self::ENCODING_BASE64:
-                return self::encodeBase64($str, self::LINELENGTH, $EOL);
+                return static::encodeBase64($str, self::LINELENGTH, $EOL);
 
             case self::ENCODING_QUOTEDPRINTABLE:
-                return self::encodeQuotedPrintable($str, self::LINELENGTH, $EOL);
+                return static::encodeQuotedPrintable($str, self::LINELENGTH, $EOL);
 
             default:
                 /**

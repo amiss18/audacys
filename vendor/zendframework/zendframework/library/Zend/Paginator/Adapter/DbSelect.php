@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Paginator
  */
 
 namespace Zend\Paginator\Adapter;
@@ -14,39 +13,43 @@ use Zend\Db\Adapter\Adapter;
 use Zend\Db\Sql\Sql;
 use Zend\Db\Sql\Expression;
 use Zend\Db\Sql\Select;
-use Zend\Db\ResultSet\ResultSetInterface;
 use Zend\Db\ResultSet\ResultSet;
+use Zend\Db\ResultSet\ResultSetInterface;
 
-/**
- * @category   Zend
- * @package    Zend_Paginator
- */
 class DbSelect implements AdapterInterface
 {
+    const ROW_COUNT_COLUMN_NAME = 'C';
 
     /**
      * @var Sql
      */
-    protected $sql = null;
+    protected $sql;
 
     /**
      * Database query
      *
      * @var Select
      */
-    protected $select = null;
+    protected $select;
+
+    /**
+     * Database count query
+     *
+     * @var Select|null
+     */
+    protected $countSelect;
 
     /**
      * @var ResultSet
      */
-    protected $resultSetPrototype = null;
+    protected $resultSetPrototype;
 
     /**
      * Total item count
      *
-     * @var integer
+     * @var int
      */
-    protected $rowCount = null;
+    protected $rowCount;
 
     /**
      * Constructor.
@@ -54,11 +57,18 @@ class DbSelect implements AdapterInterface
      * @param Select $select The select query
      * @param Adapter|Sql $adapterOrSqlObject DB adapter or Sql object
      * @param null|ResultSetInterface $resultSetPrototype
+     * @param null|Select $countSelect
+     *
      * @throws Exception\InvalidArgumentException
      */
-    public function __construct(Select $select, $adapterOrSqlObject, ResultSetInterface $resultSetPrototype = null)
-    {
+    public function __construct(
+        Select $select,
+        $adapterOrSqlObject,
+        ResultSetInterface $resultSetPrototype = null,
+        Select $countSelect = null
+    ) {
         $this->select = $select;
+        $this->countSelect = $countSelect;
 
         if ($adapterOrSqlObject instanceof Adapter) {
             $adapterOrSqlObject = new Sql($adapterOrSqlObject);
@@ -77,8 +87,8 @@ class DbSelect implements AdapterInterface
     /**
      * Returns an array of items for a page.
      *
-     * @param  integer $offset           Page offset
-     * @param  integer $itemCountPerPage Number of items per page
+     * @param  int $offset           Page offset
+     * @param  int $itemCountPerPage Number of items per page
      * @return array
      */
     public function getItems($offset, $itemCountPerPage)
@@ -93,13 +103,13 @@ class DbSelect implements AdapterInterface
         $resultSet = clone $this->resultSetPrototype;
         $resultSet->initialize($result);
 
-        return $resultSet;
+        return iterator_to_array($resultSet);
     }
 
     /**
      * Returns the total number of rows in the result set.
      *
-     * @return integer
+     * @return int
      */
     public function count()
     {
@@ -107,19 +117,38 @@ class DbSelect implements AdapterInterface
             return $this->rowCount;
         }
 
-        $select = clone $this->select;
-        $select->reset(Select::COLUMNS);
-        $select->reset(Select::LIMIT);
-        $select->reset(Select::OFFSET);
-
-        $select->columns(array('c' => new Expression('COUNT(1)')));
+        $select = $this->getSelectCount();
 
         $statement = $this->sql->prepareStatementForSqlObject($select);
         $result    = $statement->execute();
         $row       = $result->current();
 
-        $this->rowCount = $row['c'];
+        $this->rowCount = (int) $row[self::ROW_COUNT_COLUMN_NAME];
 
         return $this->rowCount;
+    }
+
+    /**
+     * Returns select query for count
+     *
+     * @return Select
+     */
+    protected function getSelectCount()
+    {
+        if ($this->countSelect) {
+            return $this->countSelect;
+        }
+
+        $select = clone $this->select;
+        $select->reset(Select::LIMIT);
+        $select->reset(Select::OFFSET);
+        $select->reset(Select::ORDER);
+
+        $countSelect = new Select;
+
+        $countSelect->columns(array(self::ROW_COUNT_COLUMN_NAME => new Expression('COUNT(1)')));
+        $countSelect->from(array('original_select' => $select));
+
+        return $countSelect;
     }
 }

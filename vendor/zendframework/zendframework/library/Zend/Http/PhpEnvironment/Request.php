@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Http
  */
 
 namespace Zend\Http\PhpEnvironment;
@@ -15,12 +14,10 @@ use Zend\Http\Request as HttpRequest;
 use Zend\Stdlib\Parameters;
 use Zend\Stdlib\ParametersInterface;
 use Zend\Uri\Http as HttpUri;
+use Zend\Validator\Hostname as HostnameValidator;
 
 /**
  * HTTP Request for current PHP environment
- *
- * @category   Zend
- * @package    Zend_Http
  */
 class Request extends HttpRequest
 {
@@ -62,9 +59,13 @@ class Request extends HttpRequest
     /**
      * Construct
      * Instantiates request.
+     *
+     * @param bool $allowCustomMethods
      */
-    public function __construct()
+    public function __construct($allowCustomMethods = true)
     {
+        $this->setAllowCustomMethods($allowCustomMethods);
+
         $this->setEnv(new Parameters($_ENV));
 
         if ($_GET) {
@@ -206,10 +207,12 @@ class Request extends HttpRequest
         // This seems to be the only way to get the Authorization header on Apache
         if (function_exists('apache_request_headers')) {
             $apacheRequestHeaders = apache_request_headers();
-            if (!isset($this->serverParams['HTTP_AUTHORIZATION'])
-                && isset($apacheRequestHeaders['Authorization'])
-            ) {
-                $this->serverParams->set('HTTP_AUTHORIZATION', $apacheRequestHeaders['Authorization']);
+            if (!isset($this->serverParams['HTTP_AUTHORIZATION'])) {
+                if (isset($apacheRequestHeaders['Authorization'])) {
+                    $this->serverParams->set('HTTP_AUTHORIZATION', $apacheRequestHeaders['Authorization']);
+                } elseif (isset($apacheRequestHeaders['authorization'])) {
+                    $this->serverParams->set('HTTP_AUTHORIZATION', $apacheRequestHeaders['authorization']);
+                }
             }
         }
 
@@ -217,21 +220,19 @@ class Request extends HttpRequest
         $headers = array();
 
         foreach ($server as $key => $value) {
-            if ($value && strpos($key, 'HTTP_') === 0) {
-                if (strpos($key, 'HTTP_COOKIE') === 0) {
-                    // Cookies are handled using the $_COOKIE superglobal
-                    continue;
-                }
-                $name = strtr(substr($key, 5), '_', ' ');
-                $name = strtr(ucwords(strtolower($name)), ' ', '-');
-            } elseif ($value && strpos($key, 'CONTENT_') === 0) {
-                $name = substr($key, 8); // Content-
-                $name = 'Content-' . (($name == 'MD5') ? $name : ucfirst(strtolower($name)));
-            } else {
-                continue;
-            }
+            if ($value || (!is_array($value) && strlen($value))) {
+                if (strpos($key, 'HTTP_') === 0) {
+                    if (strpos($key, 'HTTP_COOKIE') === 0) {
+                        // Cookies are handled using the $_COOKIE superglobal
+                        continue;
+                    }
 
-            $headers[$name] = $value;
+                    $headers[strtr(ucwords(strtolower(strtr(substr($key, 5), '_', ' '))), ' ', '-')] = $value;
+                } elseif (strpos($key, 'CONTENT_') === 0) {
+                    $name = substr($key, 8); // Remove "Content-"
+                    $headers['Content-' . (($name == 'MD5') ? $name : ucfirst(strtolower($name)))] = $value;
+                }
+            }
         }
 
         $this->getHeaders()->addHeaders($headers);
@@ -252,14 +253,44 @@ class Request extends HttpRequest
         $uri = new HttpUri();
 
         // URI scheme
-        $scheme = (!empty($this->serverParams['HTTPS'])
-                   && $this->serverParams['HTTPS'] !== 'off') ? 'https' : 'http';
+        if ((!empty($this->serverParams['HTTPS']) && strtolower($this->serverParams['HTTPS']) !== 'off')
+            || (!empty($this->serverParams['HTTP_X_FORWARDED_PROTO'])
+                 && $this->serverParams['HTTP_X_FORWARDED_PROTO'] == 'https')
+        ) {
+            $scheme = 'https';
+        } else {
+            $scheme = 'http';
+        }
         $uri->setScheme($scheme);
 
         // URI host & port
         $host = null;
         $port = null;
-        if (isset($this->serverParams['SERVER_NAME'])) {
+
+        // Set the host
+        if ($this->getHeaders()->get('host')) {
+            $host = $this->getHeaders()->get('host')->getFieldValue();
+
+            // works for regname, IPv4 & IPv6
+            if (preg_match('|\:(\d+)$|', $host, $matches)) {
+                $host = substr($host, 0, -1 * (strlen($matches[1]) + 1));
+                $port = (int) $matches[1];
+            }
+
+            // set up a validator that check if the hostname is legal (not spoofed)
+            $hostnameValidator = new HostnameValidator(array(
+                'allow'       => HostnameValidator::ALLOW_ALL,
+                'useIdnCheck' => false,
+                'useTldCheck' => false,
+            ));
+            // If invalid. Reset the host & port
+            if (!$hostnameValidator->isValid($host)) {
+                $host = null;
+                $port = null;
+            }
+        }
+
+        if (!$host && isset($this->serverParams['SERVER_NAME'])) {
             $host = $this->serverParams['SERVER_NAME'];
             if (isset($this->serverParams['SERVER_PORT'])) {
                 $port = (int) $this->serverParams['SERVER_PORT'];
@@ -273,13 +304,6 @@ class Request extends HttpRequest
                     // Unset the port so the default port can be used
                     $port = null;
                 }
-            }
-        } elseif ($this->getHeaders()->get('host')) {
-            $host = $this->getHeaders()->get('host')->getFieldValue();
-            // works for regname, IPv4 & IPv6
-            if (preg_match('|\:(\d+)$|', $host, $matches)) {
-                $host = substr($host, 0, -1 * (strlen($matches[1]) + 1));
-                $port = (int) $matches[1];
             }
         }
         $uri->setHost($host);
@@ -341,7 +365,7 @@ class Request extends HttpRequest
      * Return the parameter container responsible for env parameters or a single parameter value.
      *
      * @param string|null           $name            Parameter name to retrieve, or null to get the whole container.
-     * @param mixed|null            $default         Default value to use when the parameter is missing.     * @return \Zend\Stdlib\ParametersInterface
+     * @param mixed|null            $default         Default value to use when the parameter is missing.
      * @return \Zend\Stdlib\ParametersInterface|mixed
      */
     public function getEnv($name = null, $default = null)
@@ -439,7 +463,7 @@ class Request extends HttpRequest
         }
 
         if ($requestUri !== null) {
-            return preg_replace('#^[^:]+://[^/]+#', '', $requestUri);
+            return preg_replace('#^[^/:]+://[^/]+#', '', $requestUri);
         }
 
         // IIS 5.0, PHP as CGI.
@@ -461,13 +485,11 @@ class Request extends HttpRequest
      * Uses a variety of criteria in order to detect the base URL of the request
      * (i.e., anything additional to the document root).
      *
-     * The base URL includes the schema, host, and port, in addition to the path.
      *
      * @return string
      */
     protected function detectBaseUrl()
     {
-        $baseUrl        = '';
         $filename       = $this->getServer()->get('SCRIPT_FILENAME', '');
         $scriptName     = $this->getServer()->get('SCRIPT_NAME');
         $phpSelf        = $this->getServer()->get('PHP_SELF');
@@ -488,7 +510,8 @@ class Request extends HttpRequest
             $basename = basename($filename);
             if ($basename) {
                 $path     = ($phpSelf ? trim($phpSelf, '/') : '');
-                $baseUrl .= substr($path, 0, strpos($path, $basename)) . $basename;
+                $basePos  = strpos($path, $basename) ?: 0;
+                $baseUrl .= substr($path, 0, $basePos) . $basename;
             }
         }
 

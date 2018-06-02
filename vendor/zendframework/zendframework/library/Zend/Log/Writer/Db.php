@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Log
  */
 
 namespace Zend\Log\Writer;
@@ -13,14 +12,8 @@ namespace Zend\Log\Writer;
 use Traversable;
 use Zend\Db\Adapter\Adapter;
 use Zend\Log\Exception;
-use Zend\Log\Formatter;
 use Zend\Log\Formatter\Db as DbFormatter;
 
-/**
- * @category   Zend
- * @package    Zend_Log
- * @subpackage Writer
- */
 class Db extends AbstractWriter
 {
     /**
@@ -69,6 +62,7 @@ class Db extends AbstractWriter
         }
 
         if (is_array($db)) {
+            parent::__construct($db);
             $separator = isset($db['separator']) ? $db['separator'] : null;
             $columnMap = isset($db['column']) ? $db['column'] : null;
             $tableName = isset($db['table']) ? $db['table'] : null;
@@ -80,7 +74,7 @@ class Db extends AbstractWriter
         }
 
         $tableName = (string) $tableName;
-        if ('' === $tableName){
+        if ('' === $tableName) {
             throw new Exception\InvalidArgumentException('You must specify a table name. Either directly in the constructor, or via options');
         }
 
@@ -92,7 +86,9 @@ class Db extends AbstractWriter
             $this->separator = $separator;
         }
 
-        $this->setFormatter(new DbFormatter());
+        if (!$this->hasFormatter()) {
+            $this->setFormatter(new DbFormatter());
+        }
     }
 
     /**
@@ -129,7 +125,6 @@ class Db extends AbstractWriter
 
         $statement = $this->db->query($this->prepareInsert($this->db, $this->tableName, $dataToInsert));
         $statement->execute($dataToInsert);
-
     }
 
     /**
@@ -144,8 +139,8 @@ class Db extends AbstractWriter
     {
         $keys = array_keys($fields);
         $sql = 'INSERT INTO ' . $db->platform->quoteIdentifier($tableName) . ' (' .
-            implode(",",array_map(array($db->platform, 'quoteIdentifier'), $keys)) . ') VALUES (' .
-            implode(",",array_map(array($db->driver, 'formatParameterName'), $keys)) . ')';
+            implode(",", array_map(array($db->platform, 'quoteIdentifier'), $keys)) . ') VALUES (' .
+            implode(",", array_map(array($db->driver, 'formatParameterName'), $keys)) . ')';
 
         return $sql;
     }
@@ -168,7 +163,12 @@ class Db extends AbstractWriter
             if (is_array($value)) {
                 foreach ($value as $key => $subvalue) {
                     if (isset($columnMap[$name][$key])) {
-                        $data[$columnMap[$name][$key]] = $subvalue;
+                        if (is_scalar($subvalue)) {
+                            $data[$columnMap[$name][$key]] = $subvalue;
+                            continue;
+                        }
+
+                        $data[$columnMap[$name][$key]] = var_export($subvalue, true);
                     }
                 }
             } elseif (isset($columnMap[$name])) {
@@ -194,7 +194,12 @@ class Db extends AbstractWriter
         foreach ($event as $name => $value) {
             if (is_array($value)) {
                 foreach ($value as $key => $subvalue) {
-                    $data[$name . $this->separator . $key] = $subvalue;
+                    if (is_scalar($subvalue)) {
+                        $data[$name . $this->separator . $key] = $subvalue;
+                        continue;
+                    }
+
+                    $data[$name . $this->separator . $key] = var_export($subvalue, true);
                 }
             } else {
                 $data[$name] = $value;

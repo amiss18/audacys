@@ -1,6 +1,7 @@
 <?php
 namespace Album\Controller;
 
+use Zend\Debug\Debug;
 use Zend\Mvc\Controller\AbstractActionController,
  Zend\View\Model\ViewModel;
 use Album\Model\Album;
@@ -20,9 +21,9 @@ class AlbumController  extends AbstractActionController{
     public function indexAction(){
         
         $ch="tout ce qui brille n'est pas de l'or.\n Mais quand ...";
-        $ablbum=$this->getAlbumtable();
+        $album=$this->getAlbumtable();
      return   new ViewModel(
-                array('albums'=> $ablbum->fetchAll() )
+                array('albums'=> $album->fetchAll() )
                 );
         
     }
@@ -36,7 +37,7 @@ class AlbumController  extends AbstractActionController{
     }
     
     public function addAction(){
-       
+
         $form = new AlbumForm();
         $form->get('submit')->setValue('Add');
 
@@ -48,14 +49,12 @@ class AlbumController  extends AbstractActionController{
 
             if ($form->isValid()) {
                 $album->exchangeArray($form->getData());
-               // Zend\Debug\Debug::dump($request->getPost());
-                var_dump($form->getData());
+                //Debug::dump($request->getPost());
+                Debug::dump($form->getData());
                $this->getAlbumTable()->saveAlbum($album);
 
                 // Redirect to list of albums
                 return $this->redirect()->toRoute('album');
-               // return $this->redirect()->toRoute('/');
-               //  return array('form' => $form);
             }
         }
         return array('form' => $form);

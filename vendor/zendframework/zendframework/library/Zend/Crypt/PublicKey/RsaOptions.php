@@ -3,24 +3,17 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Crypt
  */
 
 namespace Zend\Crypt\PublicKey;
 
-use Traversable;
 use Zend\Crypt\PublicKey\Rsa\Exception;
 use Zend\Stdlib\AbstractOptions;
-use Zend\Stdlib\ArrayUtils;
 
 /**
  * RSA instance options
- *
- * @category   Zend
- * @package    Zend_Crypt
- * @subpackage PublicKey
  */
 class RsaOptions extends AbstractOptions
 {
@@ -168,19 +161,19 @@ class RsaOptions extends AbstractOptions
     /**
      * Enable/disable the binary output
      *
-     * @param  boolean $value
+     * @param  bool $value
      * @return RsaOptions
      */
     public function setBinaryOutput($value)
     {
-        $this->binaryOutput = (boolean)$value;
+        $this->binaryOutput = (bool) $value;
         return $this;
     }
 
     /**
      * Get the value of binary output
      *
-     * @return boolean
+     * @return bool
      */
     public function getBinaryOutput()
     {
@@ -195,34 +188,37 @@ class RsaOptions extends AbstractOptions
      * @throws Rsa\Exception\RuntimeException
      */
     public function generateKeys(array $opensslConfig = array())
-     {
-         $opensslConfig = array_replace(array(
-              'private_key_type' => OPENSSL_KEYTYPE_RSA,
-              'private_key_bits' => Rsa\PrivateKey::DEFAULT_KEY_SIZE,
-              'digest_alg'       => $this->getHashAlgorithm()
-         ), $opensslConfig);
+    {
+        $opensslConfig = array_replace(
+            array(
+                'private_key_type' => OPENSSL_KEYTYPE_RSA,
+                'private_key_bits' => Rsa\PrivateKey::DEFAULT_KEY_SIZE,
+                'digest_alg'       => $this->getHashAlgorithm()
+            ),
+            $opensslConfig
+        );
 
-         // generate
-         $resource = openssl_pkey_new($opensslConfig);
-         if (false === $resource) {
-             throw new Exception\RuntimeException(
-                 'Can not generate keys; openssl ' . openssl_error_string()
-             );
-         }
+        // generate
+        $resource = openssl_pkey_new($opensslConfig);
+        if (false === $resource) {
+            throw new Exception\RuntimeException(
+                'Can not generate keys; openssl ' . openssl_error_string()
+            );
+        }
 
-         // export key
-         $passPhrase = $this->getPassPhrase();
-         $result     = openssl_pkey_export($resource, $private, $passPhrase);
-         if (false === $result) {
-             throw new Exception\RuntimeException(
-                 'Can not export key; openssl ' . openssl_error_string()
-             );
-         }
+        // export key
+        $passPhrase = $this->getPassPhrase();
+        $result     = openssl_pkey_export($resource, $private, $passPhrase, $opensslConfig);
+        if (false === $result) {
+            throw new Exception\RuntimeException(
+                'Can not export key; openssl ' . openssl_error_string()
+            );
+        }
 
-         $details          = openssl_pkey_get_details($resource);
-         $this->privateKey = new Rsa\PrivateKey($private, $passPhrase);
-         $this->publicKey  = new Rsa\PublicKey($details['key']);
+        $details          = openssl_pkey_get_details($resource);
+        $this->privateKey = new Rsa\PrivateKey($private, $passPhrase);
+        $this->publicKey  = new Rsa\PublicKey($details['key']);
 
-         return $this;
-     }
+        return $this;
+    }
 }

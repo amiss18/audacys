@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Barcode
  */
 
 namespace Zend\Barcode\Renderer;
@@ -18,9 +17,6 @@ use Zend\Stdlib\ArrayUtils;
 
 /**
  * Class for rendering the barcode
- *
- * @category   Zend
- * @package    Zend_Barcode
  */
 abstract class AbstractRenderer implements RendererInterface
 {
@@ -38,31 +34,31 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Activate/Deactivate the automatic rendering of exception
-     * @var boolean
+     * @var bool
      */
     protected $automaticRenderError = false;
 
     /**
      * Offset of the barcode from the top of the rendering resource
-     * @var integer
+     * @var int
      */
     protected $topOffset = 0;
 
     /**
      * Offset of the barcode from the left of the rendering resource
-     * @var integer
+     * @var int
      */
     protected $leftOffset = 0;
 
     /**
      * Horizontal position of the barcode in the rendering resource
-     * @var integer
+     * @var string
      */
     protected $horizontalPosition = 'left';
 
     /**
      * Vertical position of the barcode in the rendering resource
-     * @var integer
+     * @var string
      */
     protected $verticalPosition = 'top';
 
@@ -84,6 +80,12 @@ abstract class AbstractRenderer implements RendererInterface
     protected $resource;
 
     /**
+     * Show a transparent background
+     * @var Boolean
+     */
+    protected $transparentBackground = false;
+
+    /**
      * Constructor
      * @param array|Traversable $options
      */
@@ -96,7 +98,7 @@ abstract class AbstractRenderer implements RendererInterface
             $this->setOptions($options);
         }
         $this->type = strtolower(substr(
-            get_called_class(),
+            get_class($this),
             strlen($this->rendererNamespace) + 1
         ));
     }
@@ -140,6 +142,28 @@ abstract class AbstractRenderer implements RendererInterface
     }
 
     /**
+     * Set whether background should be transparent
+     * Will work for SVG and Image (png and gif only)
+     *
+     * @param $bool
+     * @return $this
+     */
+    public function setTransparentBackground($bool)
+    {
+        $this->transparentBackground = $bool;
+
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function getTransparentBackground()
+    {
+        return $this->transparentBackground;
+    }
+
+    /**
      * Retrieve renderer type
      * @return string
      */
@@ -150,7 +174,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Manually adjust top position
-     * @param  integer $value
+     * @param  int $value
      * @return AbstractRenderer
      * @throws Exception\OutOfRangeException
      */
@@ -167,7 +191,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Retrieve vertical adjustment
-     * @return integer
+     * @return int
      */
     public function getTopOffset()
     {
@@ -176,7 +200,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Manually adjust left position
-     * @param  integer $value
+     * @param  int $value
      * @return AbstractRenderer
      * @throws Exception\OutOfRangeException
      */
@@ -193,7 +217,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Retrieve vertical adjustment
-     * @return integer
+     * @return int
      */
     public function getLeftOffset()
     {
@@ -202,7 +226,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Activate/Deactivate the automatic rendering of exception
-     * @param boolean $value
+     * @param  bool $value
      * @return AbstractRenderer
      */
     public function setAutomaticRenderError($value)
@@ -219,7 +243,7 @@ abstract class AbstractRenderer implements RendererInterface
      */
     public function setHorizontalPosition($value)
     {
-        if (!in_array($value, array('left' , 'center' , 'right'))) {
+        if (!in_array($value, array('left', 'center', 'right'))) {
             throw new Exception\UnexpectedValueException(
                 "Invalid barcode position provided must be 'left', 'center' or 'right'"
             );
@@ -245,7 +269,7 @@ abstract class AbstractRenderer implements RendererInterface
      */
     public function setVerticalPosition($value)
     {
-        if (!in_array($value, array('top' , 'middle' , 'bottom'))) {
+        if (!in_array($value, array('top', 'middle', 'bottom'))) {
             throw new Exception\UnexpectedValueException(
                 "Invalid barcode position provided must be 'top', 'middle' or 'bottom'"
             );
@@ -280,7 +304,6 @@ abstract class AbstractRenderer implements RendererInterface
         return $this;
     }
 
-
     /**
      * Set the size of a module
      * @return float
@@ -292,7 +315,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Retrieve the automatic rendering of exception
-     * @return boolean
+     * @return bool
      */
     public function getAutomaticRenderError()
     {
@@ -321,7 +344,7 @@ abstract class AbstractRenderer implements RendererInterface
 
     /**
      * Checking of parameters after all settings
-     * @return boolean
+     * @return bool
      */
     public function checkParams()
     {
@@ -358,8 +381,7 @@ abstract class AbstractRenderer implements RendererInterface
         if ($barcodeHeight != $supportHeight && $this->topOffset == 0) {
             switch ($this->verticalPosition) {
                 case 'middle':
-                    $this->topOffset = floor(
-                            ($supportHeight - $barcodeHeight) / 2);
+                    $this->topOffset = floor(($supportHeight - $barcodeHeight) / 2);
                     break;
                 case 'bottom':
                     $this->topOffset = $supportHeight - $barcodeHeight;
@@ -374,8 +396,7 @@ abstract class AbstractRenderer implements RendererInterface
         if ($barcodeWidth != $supportWidth && $this->leftOffset == 0) {
             switch ($this->horizontalPosition) {
                 case 'center':
-                    $this->leftOffset = floor(
-                            ($supportWidth - $barcodeWidth) / 2);
+                    $this->leftOffset = floor(($supportWidth - $barcodeWidth) / 2);
                     break;
                 case 'right':
                     $this->leftOffset = $supportWidth - $barcodeWidth;
@@ -467,8 +488,8 @@ abstract class AbstractRenderer implements RendererInterface
     /**
      * Draw a polygon in the rendering resource
      * @param array $points
-     * @param integer $color
-     * @param boolean $filled
+     * @param int $color
+     * @param  bool $filled
      */
     abstract protected function drawPolygon($points, $color, $filled = true);
 
@@ -478,9 +499,9 @@ abstract class AbstractRenderer implements RendererInterface
      * @param float $size
      * @param array $position
      * @param string $font
-     * @param integer $color
+     * @param int $color
      * @param string $alignment
-     * @param float $orientation
+     * @param float|int $orientation
      */
     abstract protected function drawText(
         $text,

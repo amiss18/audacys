@@ -3,19 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Code
  */
 
 namespace Zend\Code\Reflection;
 
 use ReflectionParameter;
 
-/**
- * @category   Zend
- * @package    Zend_Reflection
- */
 class ParameterReflection extends ReflectionParameter implements ReflectionInterface
 {
     /**
@@ -45,9 +40,10 @@ class ParameterReflection extends ReflectionParameter implements ReflectionInter
     public function getClass()
     {
         $phpReflection = parent::getClass();
-        if ($phpReflection == null) {
-            return null;
+        if ($phpReflection === null) {
+            return;
         }
+
         $zendReflection = new ClassReflection($phpReflection->getName());
         unset($phpReflection);
 
@@ -57,10 +53,9 @@ class ParameterReflection extends ReflectionParameter implements ReflectionInter
     /**
      * Get declaring function reflection object
      *
-     * @param  string $reflectionClass Reflection class to use
      * @return FunctionReflection|MethodReflection
      */
-    public function getDeclaringFunction($reflectionClass = null)
+    public function getDeclaringFunction()
     {
         $phpReflection = parent::getDeclaringFunction();
         if ($phpReflection instanceof \ReflectionMethod) {
@@ -80,26 +75,42 @@ class ParameterReflection extends ReflectionParameter implements ReflectionInter
      */
     public function getType()
     {
-        if ($docBlock = $this->getDeclaringFunction()->getDocBlock()) {
-            $params = $docBlock->getTags('param');
-
-            if (isset($params[$this->getPosition()])) {
-                return $params[$this->getPosition()]->getType();
-            }
-
+        if ($this->isArray()) {
+            return 'array';
+        } elseif (method_exists($this, 'isCallable') && $this->isCallable()) {
+            return 'callable';
         }
 
-        return null;
+        if (($class = $this->getClass()) instanceof \ReflectionClass) {
+            return $class->getName();
+        }
+
+        $docBlock = $this->getDeclaringFunction()->getDocBlock();
+        if (!$docBlock instanceof DocBlockReflection) {
+            return;
+        }
+
+        $params = $docBlock->getTags('param');
+        if (isset($params[$this->getPosition()])) {
+            return $params[$this->getPosition()]->getType();
+        }
+
+        return;
     }
 
+    /**
+     * @return string
+     */
     public function toString()
     {
         return parent::__toString();
     }
 
+    /**
+     * @return string
+     */
     public function __toString()
     {
         return parent::__toString();
     }
-
 }

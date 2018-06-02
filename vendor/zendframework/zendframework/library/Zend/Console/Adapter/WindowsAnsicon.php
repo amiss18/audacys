@@ -3,16 +3,15 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Console
  */
 
 namespace Zend\Console\Adapter;
 
+use Zend\Console\Charset;
 use Zend\Console\Charset\CharsetInterface;
 use Zend\Console\Exception;
-use Zend\Console\Charset;
 
 /**
  * MS Windows with ANSICON console adapter
@@ -27,10 +26,6 @@ use Zend\Console\Charset;
  * Console should not run in UTF8 code page (65001), because ANSICON does not behave well with it.
  * It's best to use non-unicode code page 437, 850, 851, 852 or similar. Run "help mode" for more
  * information on how to change Windows console code page.
- *
- * @category   Zend
- * @package    Zend_Console
- * @subpackage Adapter
  */
 class WindowsAnsicon extends Posix
 {
@@ -170,7 +165,6 @@ class WindowsAnsicon extends Posix
     /**
      * Get charset currently in use by this adapter.
      *
-
      * @return CharsetInterface $charset
      */
     public function getCharset()
@@ -214,7 +208,7 @@ class WindowsAnsicon extends Posix
 
                 // Fetch the char from mask
                 $char = substr($mask, $return - 1, 1);
-            } while (!$char || ($mask !== null && !stristr($mask, $char)));
+            } while ("" === $char || ($mask !== null && false === strstr($mask, $char)));
 
             return $char;
         }
@@ -227,9 +221,9 @@ class WindowsAnsicon extends Posix
         if ($mask === null) {
             exec(
                 'powershell -NonInteractive -NoProfile -NoLogo -OutputFormat Text -Command "'
-                    . 'while ($Host.UI.RawUI.KeyAvailable) {$key = $Host.UI.RawUI.ReadKey(\'NoEcho,IncludeKeyDown\');}'
-                    . 'write $key.VirtualKeyCode;'
-                    . '"',
+                . 'while ($Host.UI.RawUI.KeyAvailable) {$key = $Host.UI.RawUI.ReadKey(\'NoEcho,IncludeKeyDown\');}'
+                . 'write $key.VirtualKeyCode;'
+                . '"',
                 $result,
                 $return
             );
@@ -264,12 +258,12 @@ class WindowsAnsicon extends Posix
             $result = $return = null;
             exec(
                 'powershell -NonInteractive -NoProfile -NoLogo -OutputFormat Text -Command "'
-                    . '[int[]] $mask = '.join(',', $asciiMask).';'
-                    . 'do {'
-                        . '$key = $Host.UI.RawUI.ReadKey(\'NoEcho,IncludeKeyDown\').VirtualKeyCode;'
-                    . '} while( !($mask -contains $key) );'
-                    . 'write $key;'
-                    . '"',
+                . '[int[]] $mask = '.implode(',', $asciiMask).';'
+                . 'do {'
+                . '$key = $Host.UI.RawUI.ReadKey(\'NoEcho,IncludeKeyDown\').VirtualKeyCode;'
+                . '} while ( !($mask -contains $key) );'
+                . 'write $key;'
+                . '"',
                 $result,
                 $return
             );

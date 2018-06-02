@@ -3,27 +3,19 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\RowGateway;
 
 use ArrayAccess;
 use Countable;
-use Zend\Db\Adapter\Adapter;
 use Zend\Db\Sql\Sql;
 use Zend\Db\Sql\TableIdentifier;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage RowGateway
- */
 abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayInterface
 {
-
     /**
      * @var bool
      */
@@ -79,7 +71,7 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
             throw new Exception\RuntimeException('This row object does not have a valid table set.');
         }
 
-        if ($this->primaryKeyColumn == null) {
+        if ($this->primaryKeyColumn === null) {
             throw new Exception\RuntimeException('This row object does not have a primary key column set.');
         } elseif (is_string($this->primaryKeyColumn)) {
             $this->primaryKeyColumn = (array) $this->primaryKeyColumn;
@@ -127,24 +119,26 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
     /**
      * Save
      *
-     * @return integer
+     * @return int
      */
     public function save()
     {
         $this->initialize();
 
         if ($this->rowExistsInDatabase()) {
-
             // UPDATE
 
             $data = $this->data;
             $where = array();
+            $isPkModified = false;
 
             // primary key is always an array even if its a single column
             foreach ($this->primaryKeyColumn as $pkColumn) {
                 $where[$pkColumn] = $this->primaryKeyData[$pkColumn];
                 if ($data[$pkColumn] == $this->primaryKeyData[$pkColumn]) {
                     unset($data[$pkColumn]);
+                } else {
+                    $isPkModified = true;
                 }
             }
 
@@ -153,8 +147,15 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
             $rowsAffected = $result->getAffectedRows();
             unset($statement, $result); // cleanup
 
+            // If one or more primary keys are modified, we update the where clause
+            if ($isPkModified) {
+                foreach ($this->primaryKeyColumn as $pkColumn) {
+                    if ($data[$pkColumn] != $this->primaryKeyData[$pkColumn]) {
+                        $where[$pkColumn] = $data[$pkColumn];
+                    }
+                }
+            }
         } else {
-
             // INSERT
             $insert = $this->sql->insert();
             $insert->values($this->data);
@@ -176,7 +177,6 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
             foreach ($this->primaryKeyColumn as $pkColumn) {
                 $where[$pkColumn] = $this->primaryKeyData[$pkColumn];
             }
-
         }
 
         // refresh data
@@ -212,17 +212,20 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
         $statement = $this->sql->prepareStatementForSqlObject($this->sql->delete()->where($where));
         $result = $statement->execute();
 
-        if ($result->getAffectedRows() == 1) {
+        $affectedRows = $result->getAffectedRows();
+        if ($affectedRows == 1) {
             // detach from database
             $this->primaryKeyData = null;
         }
+
+        return $affectedRows;
     }
 
     /**
      * Offset Exists
      *
      * @param  string $offset
-     * @return boolean
+     * @return bool
      */
     public function offsetExists($offset)
     {
@@ -287,6 +290,7 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
      * __get
      *
      * @param  string $name
+     * @throws Exception\InvalidArgumentException
      * @return mixed
      */
     public function __get($name)
@@ -294,7 +298,7 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
         if (array_key_exists($name, $this->data)) {
             return $this->data[$name];
         } else {
-            throw new \InvalidArgumentException('Not a valid column in this row: ' . $name);
+            throw new Exception\InvalidArgumentException('Not a valid column in this row: ' . $name);
         }
     }
 
@@ -314,7 +318,7 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
      * __isset
      *
      * @param  string $name
-     * @return boolean
+     * @return bool
      */
     public function __isset($name)
     {
@@ -353,5 +357,4 @@ abstract class AbstractRowGateway implements ArrayAccess, Countable, RowGatewayI
             $this->primaryKeyData[$column] = $this->data[$column];
         }
     }
-
 }

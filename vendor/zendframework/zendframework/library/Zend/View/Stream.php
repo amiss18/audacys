@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_View
  */
 
 namespace Zend\View;
@@ -22,9 +21,6 @@ namespace Zend\View;
  * written by
  *     Mike Naberezny (@link http://mikenaberezny.com)
  *     Paul M. Jones  (@link http://paul-m-jones.com)
- *
- * @category   Zend
- * @package    Zend_View
  */
 class Stream
 {
@@ -51,6 +47,12 @@ class Stream
 
     /**
      * Opens the script file and converts markup.
+     *
+     * @param  string $path
+     * @param         $mode
+     * @param         $options
+     * @param         $opened_path
+     * @return bool
      */
     public function stream_open($path, $mode, $options, &$opened_path)
     {
@@ -71,8 +73,8 @@ class Stream
          * Convert <?= ?> to long-form <?php echo ?> and <?php ?> to <?php ?>
          *
          */
-        $this->data = preg_replace('/\<\?\=/',          "<?php echo ",  $this->data);
-        $this->data = preg_replace('/<\?(?!xml|php)/s', '<?php ',       $this->data);
+        $this->data = preg_replace('/\<\?\=/', "<?php echo ", $this->data);
+        $this->data = preg_replace('/<\?(?!xml|php)/s', '<?php ', $this->data);
 
         /**
          * file_get_contents() won't update PHP's stat cache, so we grab a stat
@@ -96,6 +98,9 @@ class Stream
 
     /**
      * Reads from the stream.
+     *
+     * @param  int $count
+     * @return string
      */
     public function stream_read($count)
     {
@@ -104,43 +109,49 @@ class Stream
         return $ret;
     }
 
-
     /**
      * Tells the current position in the stream.
+     *
+     * @return int
      */
     public function stream_tell()
     {
         return $this->pos;
     }
 
-
     /**
      * Tells if we are at the end of the stream.
+     *
+     * @return bool
      */
     public function stream_eof()
     {
         return $this->pos >= strlen($this->data);
     }
 
-
     /**
      * Stream statistics.
+     *
+     * @return array
      */
     public function stream_stat()
     {
         return $this->stat;
     }
 
-
     /**
      * Seek to a specific point in the stream.
+     *
+     * @param  $offset
+     * @param  $whence
+     * @return bool
      */
     public function stream_seek($offset, $whence)
     {
         switch ($whence) {
             case SEEK_SET:
                 if ($offset < strlen($this->data) && $offset >= 0) {
-                $this->pos = $offset;
+                    $this->pos = $offset;
                     return true;
                 } else {
                     return false;

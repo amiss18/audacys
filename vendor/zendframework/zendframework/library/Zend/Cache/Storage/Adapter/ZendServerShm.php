@@ -3,30 +3,22 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Cache
  */
 
 namespace Zend\Cache\Storage\Adapter;
 
-use ArrayObject;
 use Zend\Cache\Exception;
 use Zend\Cache\Storage\ClearByNamespaceInterface;
 use Zend\Cache\Storage\FlushableInterface;
 use Zend\Cache\Storage\TotalSpaceCapableInterface;
 
-/**
- * @category   Zend
- * @package    Zend_Cache
- * @subpackage Storage
- */
 class ZendServerShm extends AbstractZendServer implements
     ClearByNamespaceInterface,
     FlushableInterface,
     TotalSpaceCapableInterface
 {
-
     /**
      * Constructor
      *
@@ -49,7 +41,7 @@ class ZendServerShm extends AbstractZendServer implements
     /**
      * Flush the whole storage
      *
-     * @return boolean
+     * @return bool
      */
     public function flush()
     {
@@ -62,10 +54,15 @@ class ZendServerShm extends AbstractZendServer implements
      * Remove items of given namespace
      *
      * @param string $namespace
-     * @return boolean
+     * @return bool
      */
     public function clearByNamespace($namespace)
     {
+        $namespace = (string) $namespace;
+        if ($namespace === '') {
+            throw new Exception\InvalidArgumentException('No namespace given');
+        }
+
         return zend_shm_cache_clear($namespace);
     }
 
@@ -74,7 +71,7 @@ class ZendServerShm extends AbstractZendServer implements
     /**
      * Get total space in bytes
      *
-     * @return int|float
+     * @return int
      */
     public function getTotalSpace()
     {
@@ -97,7 +94,7 @@ class ZendServerShm extends AbstractZendServer implements
         if (!zend_shm_cache_store($internalKey, $value, $ttl)) {
             $valueType = gettype($value);
             throw new Exception\RuntimeException(
-                "zend_disk_cache_store($internalKey, <{$valueType}>, {$ttl}) failed"
+                "zend_shm_cache_store($internalKey, <{$valueType}>, {$ttl}) failed"
             );
         }
     }
@@ -106,12 +103,12 @@ class ZendServerShm extends AbstractZendServer implements
      * Fetch a single item from Zend Data SHM Cache
      *
      * @param  string $internalKey
-     * @return mixed The stored value or FALSE if item wasn't found
+     * @return mixed The stored value or NULL if item wasn't found
      * @throws Exception\RuntimeException
      */
     protected function zdcFetch($internalKey)
     {
-        return zend_shm_cache_fetch((string)$internalKey);
+        return zend_shm_cache_fetch((string) $internalKey);
     }
 
     /**
@@ -134,7 +131,7 @@ class ZendServerShm extends AbstractZendServer implements
      * Delete data from Zend Data SHM Cache
      *
      * @param  string $internalKey
-     * @return boolean
+     * @return bool
      * @throws Exception\RuntimeException
      */
     protected function zdcDelete($internalKey)

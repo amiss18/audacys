@@ -3,22 +3,15 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Cache
  */
 
 namespace Zend\Cache\Pattern;
 
 use Zend\Cache\Exception;
-use Zend\Cache\StorageFactory;
 use Zend\Stdlib\ErrorHandler;
 
-/**
- * @category   Zend
- * @package    Zend_Cache
- * @subpackage Pattern
- */
 class CallbackCache extends AbstractPattern
 {
     /**
@@ -55,7 +48,7 @@ class CallbackCache extends AbstractPattern
         $key     = $this->generateCallbackKey($callback, $args);
         $result  = $storage->getItem($key, $success);
         if ($success) {
-            if (!isset($result[0])) {
+            if (!array_key_exists(0, $result)) {
                 throw new Exception\RuntimeException("Invalid cached data for key '{$key}'");
             }
 
@@ -66,7 +59,7 @@ class CallbackCache extends AbstractPattern
         $cacheOutput = $options->getCacheOutput();
         if ($cacheOutput) {
             ob_start();
-            ob_implicit_flush(false);
+            ob_implicit_flush(0);
         }
 
         // TODO: do not cache on errors using [set|restore]_error_handler
@@ -144,9 +137,11 @@ class CallbackCache extends AbstractPattern
         $callbackKey = strtolower($callbackKey);
 
         // generate a unique key of object callbacks
-        if (is_object($callback)) { // Closures & __invoke
+        if (is_object($callback)) {
+            // Closures & __invoke
             $object = $callback;
-        } elseif (isset($callback[0])) { // array($object, 'method')
+        } elseif (isset($callback[0])) {
+            // array($object, 'method')
             $object = $callback[0];
         }
         if (isset($object)) {
@@ -155,17 +150,16 @@ class CallbackCache extends AbstractPattern
                 $serializedObject = serialize($object);
             } catch (\Exception $e) {
                 ErrorHandler::stop();
-                throw new Exception\RuntimeException(
-                    "Can't serialize callback: see previous exception", 0, $e
-                );
+                throw new Exception\RuntimeException("Can't serialize callback: see previous exception", 0, $e);
             }
             $error = ErrorHandler::stop();
 
             if (!$serializedObject) {
-                throw new Exception\RuntimeException(sprintf(
-                    'Cannot serialize callback%s',
-                    ($error ? ': ' . $error->getMessage() : '')
-                ), 0, $error);
+                throw new Exception\RuntimeException(
+                    sprintf('Cannot serialize callback%s', ($error ? ': ' . $error->getMessage() : '')),
+                    0,
+                    $error
+                );
             }
             $callbackKey.= $serializedObject;
         }
@@ -191,17 +185,16 @@ class CallbackCache extends AbstractPattern
             $serializedArgs = serialize(array_values($args));
         } catch (\Exception $e) {
             ErrorHandler::stop();
-            throw new Exception\RuntimeException(
-                "Can't serialize arguments: see previous exception"
-            , 0, $e);
+            throw new Exception\RuntimeException("Can't serialize arguments: see previous exception", 0, $e);
         }
         $error = ErrorHandler::stop();
 
         if (!$serializedArgs) {
-            throw new Exception\RuntimeException(sprintf(
-                'Cannot serialize arguments%s',
-                ($error ? ': ' . $error->getMessage() : '')
-            ), 0, $error);
+            throw new Exception\RuntimeException(
+                sprintf('Cannot serialize arguments%s', ($error ? ': ' . $error->getMessage() : '')),
+                0,
+                $error
+            );
         }
 
         return md5($serializedArgs);

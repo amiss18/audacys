@@ -3,25 +3,33 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Stdlib
  */
 
 namespace Zend\Stdlib;
 
 use Traversable;
+use Zend\Stdlib\ArrayUtils\MergeRemoveKey;
+use Zend\Stdlib\ArrayUtils\MergeReplaceKeyInterface;
 
 /**
  * Utility class for testing and manipulation of PHP arrays.
  *
  * Declared abstract, as we have no need for instantiation.
- *
- * @category   Zend
- * @package    Zend_Stdlib
  */
 abstract class ArrayUtils
 {
+    /**
+     * Compatibility Flag for ArrayUtils::filter
+     */
+    const ARRAY_FILTER_USE_BOTH = 1;
+
+    /**
+     * Compatibility Flag for ArrayUtils::filter
+     */
+    const ARRAY_FILTER_USE_KEY  = 2;
+
     /**
      * Test whether an array contains one or more string keys
      *
@@ -97,11 +105,11 @@ abstract class ArrayUtils
      *
      * For example:
      * <code>
-     * $list = array( 'a','b','c','d' );
+     * $list = array('a', 'b', 'c', 'd');
      * $list = array(
      *     0 => 'foo',
      *     1 => 'bar',
-     *     2 => array( 'foo' => 'baz' ),
+     *     2 => array('foo' => 'baz'),
      * );
      * </code>
      *
@@ -165,6 +173,36 @@ abstract class ArrayUtils
     }
 
     /**
+     * Checks if a value exists in an array.
+     *
+     * Due to "foo" == 0 === TRUE with in_array when strict = false, an option
+     * has been added to prevent this. When $strict = 0/false, the most secure
+     * non-strict check is implemented. if $strict = -1, the default in_array
+     * non-strict behaviour is used.
+     *
+     * @param mixed $needle
+     * @param array $haystack
+     * @param int|bool $strict
+     * @return bool
+     */
+    public static function inArray($needle, array $haystack, $strict = false)
+    {
+        if (!$strict) {
+            if (is_int($needle) || is_float($needle)) {
+                $needle = (string) $needle;
+            }
+            if (is_string($needle)) {
+                foreach ($haystack as &$h) {
+                    if (is_int($h) || is_float($h)) {
+                        $h = (string) $h;
+                    }
+                }
+            }
+        }
+        return in_array($needle, $haystack, $strict);
+    }
+
+    /**
      * Convert an iterator to an array.
      *
      * Converts an iterator to an array. The $recursive flag, on by default,
@@ -219,31 +257,79 @@ abstract class ArrayUtils
     /**
      * Merge two arrays together.
      *
-     * If an integer key exists in both arrays, the value from the second array
-     * will be appended the the first array. If both values are arrays, they
-     * are merged together, else the value of the second array overwrites the
-     * one of the first array.
+     * If an integer key exists in both arrays and preserveNumericKeys is false, the value
+     * from the second array will be appended to the first array. If both values are arrays, they
+     * are merged together, else the value of the second array overwrites the one of the first array.
      *
      * @param  array $a
      * @param  array $b
+     * @param  bool  $preserveNumericKeys
      * @return array
      */
-    public static function merge(array $a, array $b)
+    public static function merge(array $a, array $b, $preserveNumericKeys = false)
     {
         foreach ($b as $key => $value) {
-            if (array_key_exists($key, $a)) {
-                if (is_int($key)) {
+            if ($value instanceof MergeReplaceKeyInterface) {
+                $a[$key] = $value->getData();
+            } elseif (isset($a[$key]) || array_key_exists($key, $a)) {
+                if ($value instanceof MergeRemoveKey) {
+                    unset($a[$key]);
+                } elseif (!$preserveNumericKeys && is_int($key)) {
                     $a[] = $value;
                 } elseif (is_array($value) && is_array($a[$key])) {
-                    $a[$key] = self::merge($a[$key], $value);
+                    $a[$key] = static::merge($a[$key], $value, $preserveNumericKeys);
                 } else {
                     $a[$key] = $value;
                 }
             } else {
-                $a[$key] = $value;
+                if (!$value instanceof MergeRemoveKey) {
+                    $a[$key] = $value;
+                }
             }
         }
 
         return $a;
+    }
+
+    /**
+     * Compatibility Method for array_filter on <5.6 systems
+     *
+     * @param array $data
+     * @param callable $callback
+     * @param null|int $flag
+     * @return array
+     */
+    public static function filter(array $data, $callback, $flag = null)
+    {
+        if (! is_callable($callback)) {
+            throw new Exception\InvalidArgumentException(sprintf(
+                'Second parameter of %s must be callable',
+                __METHOD__
+            ));
+        }
+
+        if (version_compare(PHP_VERSION, '5.6.0') >= 0) {
+            return array_filter($data, $callback, $flag);
+        }
+
+        $output = array();
+        foreach ($data as $key => $value) {
+            $params = array($value);
+
+            if ($flag === static::ARRAY_FILTER_USE_BOTH) {
+                $params[] = $key;
+            }
+
+            if ($flag === static::ARRAY_FILTER_USE_KEY) {
+                $params = array($key);
+            }
+
+            $response = call_user_func_array($callback, $params);
+            if ($response) {
+                $output[$key] = $value;
+            }
+        }
+
+        return $output;
     }
 }

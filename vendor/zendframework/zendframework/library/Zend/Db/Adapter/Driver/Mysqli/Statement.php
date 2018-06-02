@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Adapter\Driver\Mysqli;
@@ -13,15 +12,10 @@ namespace Zend\Db\Adapter\Driver\Mysqli;
 use Zend\Db\Adapter\Driver\StatementInterface;
 use Zend\Db\Adapter\Exception;
 use Zend\Db\Adapter\ParameterContainer;
+use Zend\Db\Adapter\Profiler;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Adapter
- */
-class Statement implements StatementInterface
+class Statement implements StatementInterface, Profiler\ProfilerAwareInterface
 {
-
     /**
      * @var \mysqli
      */
@@ -31,6 +25,11 @@ class Statement implements StatementInterface
      * @var Mysqli
      */
     protected $driver = null;
+
+    /**
+     * @var Profiler\ProfilerInterface
+     */
+    protected $profiler = null;
 
     /**
      * @var string
@@ -52,7 +51,7 @@ class Statement implements StatementInterface
     /**
      * Is prepared
      *
-     * @var boolean
+     * @var bool
      */
     protected $isPrepared = false;
 
@@ -79,6 +78,24 @@ class Statement implements StatementInterface
     {
         $this->driver = $driver;
         return $this;
+    }
+
+    /**
+     * @param Profiler\ProfilerInterface $profiler
+     * @return Statement
+     */
+    public function setProfiler(Profiler\ProfilerInterface $profiler)
+    {
+        $this->profiler = $profiler;
+        return $this;
+    }
+
+    /**
+     * @return null|Profiler\ProfilerInterface
+     */
+    public function getProfiler()
+    {
+        return $this->profiler;
     }
 
     /**
@@ -151,6 +168,8 @@ class Statement implements StatementInterface
     }
 
     /**
+     * Get parameter count
+     *
      * @return ParameterContainer
      */
     public function getParameterContainer()
@@ -159,6 +178,8 @@ class Statement implements StatementInterface
     }
 
     /**
+     * Is prepared
+     *
      * @return bool
      */
     public function isPrepared()
@@ -167,6 +188,8 @@ class Statement implements StatementInterface
     }
 
     /**
+     * Prepare
+     *
      * @param string $sql
      * @throws Exception\InvalidQueryException
      * @throws Exception\RuntimeException
@@ -180,7 +203,7 @@ class Statement implements StatementInterface
 
         $sql = ($sql) ?: $this->sql;
 
-        $this->resource = $this->mysqli->prepare($this->sql);
+        $this->resource = $this->mysqli->prepare($sql);
         if (!$this->resource instanceof \mysqli_stmt) {
             throw new Exception\InvalidQueryException(
                 'Statement couldn\'t be produced with sql: ' . $sql,
@@ -196,7 +219,7 @@ class Statement implements StatementInterface
     /**
      * Execute
      *
-     * @param  ParameterContainer $parameters
+     * @param null|array|ParameterContainer $parameters
      * @throws Exception\RuntimeException
      * @return mixed
      */
@@ -225,7 +248,17 @@ class Statement implements StatementInterface
         }
         /** END Standard ParameterContainer Merging Block */
 
-        if ($this->resource->execute() === false) {
+        if ($this->profiler) {
+            $this->profiler->profilerStart($this);
+        }
+
+        $return = $this->resource->execute();
+
+        if ($this->profiler) {
+            $this->profiler->profilerFinish();
+        }
+
+        if ($return === false) {
             throw new Exception\RuntimeException($this->resource->error);
         }
 
@@ -243,6 +276,8 @@ class Statement implements StatementInterface
 
     /**
      * Bind parameters from container
+     *
+     * @return void
      */
     protected function bindParametersFromContainer()
     {
@@ -277,5 +312,4 @@ class Statement implements StatementInterface
             call_user_func_array(array($this->resource, 'bind_param'), $args);
         }
     }
-
 }

@@ -11,6 +11,7 @@
  * file.
  */
 
+
 return array(
     'db' => array(
         'driver'         => 'Pdo',
@@ -27,4 +28,6 @@ return array(
                     => 'Zend\Db\Adapter\AdapterServiceFactory',
         ),
     ),
+
+
 );

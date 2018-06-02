@@ -3,18 +3,15 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Http
  */
 
 namespace Zend\Http\Header;
 
 use Zend\Uri\Exception as UriException;
-use Zend\Uri\UriInterface;
 use Zend\Uri\UriFactory;
-use Zend\Uri\Uri;
-
+use Zend\Uri\UriInterface;
 
 /**
  * Abstract Location Header
@@ -26,9 +23,6 @@ use Zend\Uri\Uri;
  * Note for 'Location' header:
  * While RFC 1945 requires an absolute URI, most of the browsers also support relative URI
  * This class allows relative URIs, and let user retrieve URI instance if strict validation needed
- *
- * @category   Zend
- * @package    Zend_Http
  */
 abstract class AbstractLocation implements HeaderInterface
 {
@@ -51,7 +45,7 @@ abstract class AbstractLocation implements HeaderInterface
         $locationHeader = new static();
 
         // ZF-5520 - IIS bug, no space after colon
-        list($name, $uri) = explode(':', $headerLine, 2);
+        list($name, $uri) = GenericHeader::splitHeaderLine($headerLine);
 
         // check to ensure proper header type for this factory
         if (strtolower($name) !== strtolower($locationHeader->getFieldName())) {
@@ -60,6 +54,7 @@ abstract class AbstractLocation implements HeaderInterface
             );
         }
 
+        HeaderValue::assertValid($uri);
         $locationHeader->setUri(trim($uri));
 
         return $locationHeader;
@@ -79,9 +74,9 @@ abstract class AbstractLocation implements HeaderInterface
                 $uri = UriFactory::factory($uri);
             } catch (UriException\InvalidUriPartException $e) {
                 throw new Exception\InvalidArgumentException(
-                        sprintf('Invalid URI passed as string (%s)', (string) $uri),
-                        $e->getCode(),
-                        $e
+                    sprintf('Invalid URI passed as string (%s)', (string) $uri),
+                    $e->getCode(),
+                    $e
                 );
             }
         } elseif (!($uri instanceof UriInterface)) {

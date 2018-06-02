@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Ldap
  */
 
 namespace Zend\Ldap\Node\Schema;
@@ -17,10 +16,6 @@ use Zend\Ldap\Node;
 /**
  * Zend\Ldap\Node\Schema\OpenLDAP provides a simple data-container for the Schema node of
  * an OpenLDAP server.
- *
- * @category   Zend
- * @package    Zend_Ldap
- * @subpackage Schema
  */
 class OpenLdap extends Node\Schema
 {
@@ -139,7 +134,6 @@ class OpenLdap extends Node\Schema
             $val                                   = $this->parseAttributeType($value);
             $val                                   = new AttributeType\OpenLdap($val);
             $this->attributeTypes[$val->getName()] = $val;
-
         }
         foreach ($this->attributeTypes as $val) {
             if (count($val->sup) > 0) {
@@ -326,7 +320,7 @@ class OpenLdap extends Node\Schema
     }
 
     /**
-     * Parses an matchingRules value
+     * Parses a matchingRules value
      *
      * @param  string $value
      * @return array
@@ -366,7 +360,7 @@ class OpenLdap extends Node\Schema
     }
 
     /**
-     * Parses an matchingRuleUse value
+     * Parses a matchingRuleUse value
      *
      * @param  string $value
      * @return array
@@ -456,7 +450,7 @@ class OpenLdap extends Node\Schema
                 } else {
                     $data[$token] = Converter\Converter::fromLdap($data[$token]);
                 }
-                // create a array if the value should be multivalued but was not
+                // create an array if the value should be multivalued but was not
                 if (in_array($token, $multiValue) && !is_array($data[$token])) {
                     $data[$token] = array($data[$token]);
                 }

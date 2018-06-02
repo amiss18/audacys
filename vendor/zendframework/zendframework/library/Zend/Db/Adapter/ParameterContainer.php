@@ -3,25 +3,23 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Adapter;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Adapter
- */
-class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
-{
+use ArrayAccess;
+use Countable;
+use Iterator;
 
+class ParameterContainer implements Iterator, ArrayAccess, Countable
+{
     const TYPE_AUTO    = 'auto';
     const TYPE_NULL    = 'null';
     const TYPE_DOUBLE  = 'double';
     const TYPE_INTEGER = 'integer';
+    const TYPE_BINARY  = 'binary';
     const TYPE_STRING  = 'string';
     const TYPE_LOB     = 'lob';
 
@@ -45,6 +43,13 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     protected $errata = array();
 
     /**
+     * Max length
+     *
+     * @var array
+     */
+    protected $maxLength = array();
+
+    /**
      * Constructor
      *
      * @param array $data
@@ -60,7 +65,7 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
      * Offset exists
      *
      * @param  string $name
-     * @return boolean
+     * @return bool
      */
     public function offsetExists($name)
     {
@@ -90,19 +95,45 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     /**
      * Offset set
      *
-     * @param string|integer $name
+     * @param string|int $name
      * @param mixed $value
      * @param mixed $errata
+     * @param mixed $maxLength
+     * @throws Exception\InvalidArgumentException
      */
-    public function offsetSet($name, $value, $errata = null)
+    public function offsetSet($name, $value, $errata = null, $maxLength = null)
     {
-        $this->data[$name] = $value;
+        $position = false;
 
-        $names = array_keys($this->data);
-        $this->positions[array_search($name, $names)] = $name;
+        // if integer, get name for this position
+        if (is_int($name)) {
+            if (isset($this->positions[$name])) {
+                $position = $name;
+                $name = $this->positions[$name];
+            } else {
+                $name = (string) $name;
+            }
+        } elseif (is_string($name)) {
+            // is a string:
+            $position = array_key_exists($name, $this->data);
+        } elseif ($name === null) {
+            $name = (string) count($this->data);
+        } else {
+            throw new Exception\InvalidArgumentException('Keys must be string, integer or null');
+        }
+
+        if ($position === false) {
+            $this->positions[] = $name;
+        }
+
+        $this->data[$name] = $value;
 
         if ($errata) {
             $this->offsetSetErrata($name, $errata);
+        }
+
+        if ($maxLength) {
+            $this->offsetSetMaxLength($name, $maxLength);
         }
     }
 
@@ -114,7 +145,7 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
      */
     public function offsetUnset($name)
     {
-        if (is_int($name)) {
+        if (is_int($name) && isset($this->positions[$name])) {
             $name = $this->positions[$name];
         }
         unset($this->data[$name]);
@@ -136,9 +167,82 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     }
 
     /**
+     * Offset set max length
+     *
+     * @param string|int $name
+     * @param mixed $maxLength
+     */
+    public function offsetSetMaxLength($name, $maxLength)
+    {
+        if (is_int($name)) {
+            $name = $this->positions[$name];
+        }
+        $this->maxLength[$name] = $maxLength;
+    }
+
+    /**
+     * Offset get max length
+     *
+     * @param  string|int $name
+     * @throws Exception\InvalidArgumentException
+     * @return mixed
+     */
+    public function offsetGetMaxLength($name)
+    {
+        if (is_int($name)) {
+            $name = $this->positions[$name];
+        }
+        if (!array_key_exists($name, $this->data)) {
+            throw new Exception\InvalidArgumentException('Data does not exist for this name/position');
+        }
+        return $this->maxLength[$name];
+    }
+
+    /**
+     * Offset has max length
+     *
+     * @param  string|int $name
+     * @return bool
+     */
+    public function offsetHasMaxLength($name)
+    {
+        if (is_int($name)) {
+            $name = $this->positions[$name];
+        }
+        return (isset($this->maxLength[$name]));
+    }
+
+    /**
+     * Offset unset max length
+     *
+     * @param string|int $name
+     * @throws Exception\InvalidArgumentException
+     */
+    public function offsetUnsetMaxLength($name)
+    {
+        if (is_int($name)) {
+            $name = $this->positions[$name];
+        }
+        if (!array_key_exists($name, $this->maxLength)) {
+            throw new Exception\InvalidArgumentException('Data does not exist for this name/position');
+        }
+        $this->maxLength[$name] = null;
+    }
+
+    /**
+     * Get max length iterator
+     *
+     * @return \ArrayIterator
+     */
+    public function getMaxLengthIterator()
+    {
+        return new \ArrayIterator($this->maxLength);
+    }
+
+    /**
      * Offset set errata
      *
-     * @param string|integer $name
+     * @param string|int $name
      * @param mixed $errata
      */
     public function offsetSetErrata($name, $errata)
@@ -152,7 +256,7 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     /**
      * Offset get errata
      *
-     * @param  string|integer $name
+     * @param  string|int $name
      * @throws Exception\InvalidArgumentException
      * @return mixed
      */
@@ -170,8 +274,8 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     /**
      * Offset has errata
      *
-     * @param  string|integer $name
-     * @return boolean
+     * @param  string|int $name
+     * @return bool
      */
     public function offsetHasErrata($name)
     {
@@ -184,7 +288,7 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     /**
      * Offset unset errata
      *
-     * @param string|integer $name
+     * @param string|int $name
      * @throws Exception\InvalidArgumentException
      */
     public function offsetUnsetErrata($name)
@@ -231,7 +335,7 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     /**
      * count
      *
-     * @return integer
+     * @return int
      */
     public function count()
     {
@@ -271,7 +375,7 @@ class ParameterContainer implements \Iterator, \ArrayAccess, \Countable
     /**
      * Valid
      *
-     * @return boolean
+     * @return bool
      */
     public function valid()
     {

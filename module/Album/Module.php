@@ -3,6 +3,7 @@
 namespace Album;
 // Add this import statement:
 use Album\Model\AlbumTable;
+use Zend\ModuleManager\ModuleManager;
 class Module
 {
 	 // Add this method:
@@ -36,4 +37,14 @@ class Module
     {
         return include __DIR__ . '/config/module.config.php';
     }
+
+
+    public function init(ModuleManager $mm)
+    {
+        $mm->getEventManager()->getSharedManager()->attach(__NAMESPACE__,
+        'dispatch', function($e) {
+            $e->getTarget()->layout('Album/layout'); // loading the template file: Album/layout/base.phtml
+        });
+    }
+
 }

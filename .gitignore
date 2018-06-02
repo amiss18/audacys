@@ -1,2 +1,4 @@
-/nbproject/private/
-module/Album/src/Album/Controller/AlbumController_1.php
+/nbproject
+/vendor
+/data/cache/*
+/.idea

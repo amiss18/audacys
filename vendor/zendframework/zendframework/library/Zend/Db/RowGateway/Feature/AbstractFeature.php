@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\RowGateway\Feature;
@@ -15,7 +14,6 @@ use Zend\Db\RowGateway\Exception;
 
 abstract class AbstractFeature extends AbstractRowGateway
 {
-
     /**
      * @var AbstractRowGateway
      */
@@ -31,7 +29,7 @@ abstract class AbstractFeature extends AbstractRowGateway
      */
     public function getName()
     {
-        return get_called_class();
+        return get_class($this);
     }
 
     /**
@@ -57,5 +55,4 @@ abstract class AbstractFeature extends AbstractRowGateway
     {
         return array();
     }
-
 }

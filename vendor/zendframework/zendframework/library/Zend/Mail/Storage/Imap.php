@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Storage;
@@ -13,11 +12,6 @@ namespace Zend\Mail\Storage;
 use Zend\Mail;
 use Zend\Mail\Protocol;
 
-/**
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Storage
- */
 class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\WritableInterface
 {
     // TODO: with an internal cache we could optimize this class, or create an extra class with
@@ -42,6 +36,7 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
     protected static $knownFlags = array('\Passed'   => Mail\Storage::FLAG_PASSED,
                                           '\Answered' => Mail\Storage::FLAG_ANSWERED,
                                           '\Seen'     => Mail\Storage::FLAG_SEEN,
+                                          '\Unseen'   => Mail\Storage::FLAG_UNSEEN,
                                           '\Deleted'  => Mail\Storage::FLAG_DELETED,
                                           '\Draft'    => Mail\Storage::FLAG_DRAFT,
                                           '\Flagged'  => Mail\Storage::FLAG_FLAGGED);
@@ -53,6 +48,7 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
     protected static $searchFlags = array('\Recent'   => 'RECENT',
                                            '\Answered' => 'ANSWERED',
                                            '\Seen'     => 'SEEN',
+                                           '\Unseen'   => 'UNSEEN',
                                            '\Deleted'  => 'DELETED',
                                            '\Draft'    => 'DRAFT',
                                            '\Flagged'  => 'FLAGGED');
@@ -76,9 +72,9 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         }
 
         $params = array();
-        foreach ((array)$flags as $flag) {
-            if (isset(self::$searchFlags[$flag])) {
-                $params[] = self::$searchFlags[$flag];
+        foreach ((array) $flags as $flag) {
+            if (isset(static::$searchFlags[$flag])) {
+                $params[] = static::$searchFlags[$flag];
             } else {
                 $params[] = 'KEYWORD';
                 $params[] = $this->protocol->escapeString($flag);
@@ -116,7 +112,7 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
 
         $flags = array();
         foreach ($data['FLAGS'] as $flag) {
-            $flags[] = isset(self::$knownFlags[$flag]) ? self::$knownFlags[$flag] : $flag;
+            $flags[] = isset(static::$knownFlags[$flag]) ? static::$knownFlags[$flag] : $flag;
         }
 
         return new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $header, 'flags' => $flags));
@@ -181,7 +177,7 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
     public function __construct($params)
     {
         if (is_array($params)) {
-            $params = (object)$params;
+            $params = (object) $params;
         }
 
         $this->has['flags'] = true;
@@ -295,7 +291,6 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         throw new Exception\InvalidArgumentException('unique id not found');
     }
 
-
     /**
      * get root folder or given folder
      *
@@ -307,7 +302,7 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function getFolders($rootFolder = null)
     {
-        $folders = $this->protocol->listMailbox((string)$rootFolder);
+        $folders = $this->protocol->listMailbox((string) $rootFolder);
         if (!$folders) {
             throw new Exception\InvalidArgumentException('folder not found');
         }
@@ -368,7 +363,6 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         }
     }
 
-
     /**
      * get \Zend\Mail\Storage\Folder instance for current folder
      *
@@ -394,7 +388,7 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         // TODO: we assume / as the hierarchy delim - need to get that from the folder class!
         if ($parentFolder instanceof Folder) {
             $folder = $parentFolder->getGlobalName() . '/' . $name;
-        } elseif ($parentFolder != null) {
+        } elseif ($parentFolder !== null) {
             $folder = $parentFolder . '/' . $name;
         } else {
             $folder = $name;
@@ -450,7 +444,6 @@ class Imap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      * @param  null|array                            $flags   set flags for new message, else a default set is used
      * @throws Exception\RuntimeException
      */
-     // not yet * @param string|\Zend\Mail\Message|\Zend\Mime\Message $message message as string or instance of message class
     public function appendMessage($message, $folder = null, $flags = null)
     {
         if ($folder === null) {

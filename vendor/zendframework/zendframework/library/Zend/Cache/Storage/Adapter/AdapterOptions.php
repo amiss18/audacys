@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Cache
  */
 
 namespace Zend\Cache\Storage\Adapter;
@@ -20,18 +19,13 @@ use Zend\Stdlib\ErrorHandler;
 
 /**
  * Unless otherwise marked, all options in this class affect all adapters.
- *
- * @category   Zend
- * @package    Zend_Cache
- * @subpackage Storage
  */
 class AdapterOptions extends AbstractOptions
 {
-
     /**
      * The adapter using these options
      *
-     * @var null|Filesystem
+     * @var null|StorageInterface
      */
     protected $adapter;
 
@@ -52,7 +46,7 @@ class AdapterOptions extends AbstractOptions
     /**
      * Readable option
      *
-     * @var boolean
+     * @var bool
      */
     protected $readable = true;
 
@@ -66,7 +60,7 @@ class AdapterOptions extends AbstractOptions
     /**
      * Writable option
      *
-     * @var boolean
+     * @var bool
      */
     protected $writable = true;
 
@@ -154,7 +148,7 @@ class AdapterOptions extends AbstractOptions
     /**
      * Enable/Disable reading data from cache.
      *
-     * @param  boolean $readable
+     * @param  bool $readable
      * @return AbstractAdapter
      */
     public function setReadable($readable)
@@ -170,7 +164,7 @@ class AdapterOptions extends AbstractOptions
     /**
      * If reading data from cache enabled.
      *
-     * @return boolean
+     * @return bool
      */
     public function getReadable()
     {
@@ -206,7 +200,7 @@ class AdapterOptions extends AbstractOptions
     /**
      * Enable/Disable writing data to cache.
      *
-     * @param  boolean $writable
+     * @param  bool $writable
      * @return AdapterOptions
      */
     public function setWritable($writable)
@@ -222,7 +216,7 @@ class AdapterOptions extends AbstractOptions
     /**
      * If writing data to cache enabled.
      *
-     * @return boolean
+     * @return bool
      */
     public function getWritable()
     {
@@ -264,7 +258,7 @@ class AdapterOptions extends AbstractOptions
         }
 
         if ($ttl < 0) {
-             throw new Exception\InvalidArgumentException("TTL can't be negative");
+            throw new Exception\InvalidArgumentException("TTL can't be negative");
         }
     }
 }

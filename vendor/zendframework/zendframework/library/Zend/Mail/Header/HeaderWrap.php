@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Header;
@@ -16,10 +15,6 @@ use Zend\Mime\Mime;
 /**
  * Utility class used for creating wrapped or MIME-encoded versions of header
  * values.
- *
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Header
  */
 abstract class HeaderWrap
 {
@@ -96,5 +91,33 @@ abstract class HeaderWrap
     public static function mimeEncodeValue($value, $encoding, $lineLength = 998)
     {
         return Mime::encodeQuotedPrintableHeader($value, $encoding, $lineLength, Headers::EOL);
+    }
+
+    /**
+     * MIME-decode a value
+     *
+     * Performs quoted-printable decoding on a value.
+     *
+     * @param  string $value
+     * @return string Returns the mime encode value without the last line ending
+     */
+    public static function mimeDecodeValue($value)
+    {
+        $decodedValue = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
+
+        return $decodedValue;
+    }
+
+    /**
+     * Test if is possible apply MIME-encoding
+     *
+     * @param string $value
+     * @return bool
+     */
+    public static function canBeEncoded($value)
+    {
+        $encoded = iconv_mime_encode('x-test', $value, array('scheme' => 'Q'));
+
+        return (false !== $encoded);
     }
 }

@@ -3,142 +3,48 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Code
  */
 
 namespace Zend\Code\Generator\DocBlock;
 
-use Zend\Code\Generator\AbstractGenerator;
-use Zend\Code\Reflection\DocBlock\Tag\TagInterface as ReflectionDocBlockTag;
+use Zend\Code\Generator\DocBlock\Tag\GenericTag;
+use Zend\Code\Reflection\DocBlock\Tag\TagInterface as ReflectionTagInterface;
 
 /**
- * @category   Zend
- * @package    Zend_Code_Generator
+ * @deprecated Deprecated in 2.3. Use GenericTag instead
  */
-class Tag extends AbstractGenerator
+class Tag extends GenericTag
 {
-
-    protected static $typeFormats = array(
-        array(
-            'param',
-            '@param <type> <variable> <description>'
-        ),
-        array(
-            'return',
-            '@return <type> <description>'
-        ),
-        array(
-            'tag',
-            '@<name> <description>'
-        )
-    );
-
     /**
-     * @var string
-     */
-    protected $name = null;
-
-    /**
-     * @var string
-     */
-    protected $description = null;
-
-    /**
-     * @param array $options
-     */
-    public function __construct(array $options = array())
-    {
-        if (array_key_exists('name', $options)) {
-            $this->setName($options['name']);
-        }
-        if (array_key_exists('description', $options)) {
-            $this->setDescription($options['description']);
-        }
-    }
-
-    /**
-     * fromReflection()
-     *
-     * @param ReflectionDocBlockTag $reflectionTag
+     * @param  ReflectionTagInterface $reflectionTag
      * @return Tag
+     * @deprecated Deprecated in 2.3. Use TagManager::createTagFromReflection() instead
      */
-    public static function fromReflection(ReflectionDocBlockTag $reflectionTag)
+    public static function fromReflection(ReflectionTagInterface $reflectionTag)
     {
-        $tagName = $reflectionTag->getName();
-
-        $codeGenDocBlockTag = new self();
-        $codeGenDocBlockTag->setName($tagName);
-
-        // transport any properties via accessors and mutators from reflection to codegen object
-        $reflectionClass = new \ReflectionClass($reflectionTag);
-        foreach ($reflectionClass->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (substr($method->getName(), 0, 3) == 'get') {
-                $propertyName = substr($method->getName(), 3);
-                if (method_exists($codeGenDocBlockTag, 'set' . $propertyName)) {
-                    $codeGenDocBlockTag->{'set' . $propertyName}($reflectionTag->{'get' . $propertyName}());
-                }
-            }
-        }
-
-        return $codeGenDocBlockTag;
+        $tagManager = new TagManager();
+        $tagManager->initializeDefaultTags();
+        return $tagManager->createTagFromReflection($reflectionTag);
     }
 
     /**
-     * setName()
-     *
-     * @param string $name
+     * @param  string $description
      * @return Tag
-     */
-    public function setName($name)
-    {
-        $this->name = ltrim($name, '@');
-        return $this;
-    }
-
-    /**
-     * getName()
-     *
-     * @return string
-     */
-    public function getName()
-    {
-        return $this->name;
-    }
-
-    /**
-     * setDescription()
-     *
-     * @param string $description
-     * @return Tag
+     * @deprecated Deprecated in 2.3. Use GenericTag::setContent() instead
      */
     public function setDescription($description)
     {
-        $this->description = $description;
-        return $this;
+        return $this->setContent($description);
     }
 
     /**
-     * getDescription()
-     *
      * @return string
+     * @deprecated Deprecated in 2.3. Use GenericTag::getContent() instead
      */
     public function getDescription()
     {
-        return $this->description;
+        return $this->getContent();
     }
-
-    /**
-     * generate()
-     *
-     * @return string
-     */
-    public function generate()
-    {
-        $output = '@' . $this->name
-            . (($this->description != null) ? ' ' . $this->description : '');
-        return $output;
-    }
-
 }

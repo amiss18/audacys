@@ -1,21 +1,9 @@
 <?php
 /**
- * Zend Framework
+ * Zend Framework (http://framework.zend.com/)
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://framework.zend.com/license/new-bsd
- * If you did not receive a copy of the license and are unable to
- * obtain it through the world-wide-web, please send an email
- * to license@zend.com so we can send you a copy immediately.
- *
- * @category   Zend
- * @package    Zend_Form
- * @subpackage Element
- * @copyright  Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @link      http://github.com/zendframework/zf2 for the canonical source repository
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 
@@ -23,18 +11,9 @@ namespace Zend\Form\Element;
 
 use Traversable;
 use Zend\Form\Element;
-use Zend\Form\Exception;
 use Zend\InputFilter\InputProviderInterface;
 use Zend\Validator\InArray as InArrayValidator;
-use Zend\Validator\ValidatorInterface;
 
-/**
- * @category   Zend
- * @package    Zend_Form
- * @subpackage Element
- * @copyright  Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
- * @license    http://framework.zend.com/license/new-bsd     New BSD License
- */
 class Checkbox extends Element implements InputProviderInterface
 {
     /**
@@ -47,7 +26,7 @@ class Checkbox extends Element implements InputProviderInterface
     );
 
     /**
-     * @var ValidatorInterface
+     * @var \Zend\Validator\ValidatorInterface
      */
     protected $validator;
 
@@ -72,7 +51,7 @@ class Checkbox extends Element implements InputProviderInterface
      * - unchecked_value: value for checkbox when unchecked
      * - checked_value: value for checkbox when checked
      *
-     * @param  array|\Traversable $options
+     * @param  array|Traversable $options
      * @return Checkbox
      */
     public function setOptions($options)
@@ -102,7 +81,7 @@ class Checkbox extends Element implements InputProviderInterface
      */
     public function setUseHiddenElement($useHiddenElement)
     {
-        $this->useHiddenElement = (bool)$useHiddenElement;
+        $this->useHiddenElement = (bool) $useHiddenElement;
         return $this;
     }
 
@@ -163,7 +142,7 @@ class Checkbox extends Element implements InputProviderInterface
     /**
      * Get validator
      *
-     * @return ValidatorInterface
+     * @return \Zend\Validator\ValidatorInterface
      */
     protected function getValidator()
     {
@@ -188,10 +167,13 @@ class Checkbox extends Element implements InputProviderInterface
         $spec = array(
             'name' => $this->getName(),
             'required' => true,
-            'validators' => array(
-                $this->getValidator()
-            )
         );
+
+        if ($validator = $this->getValidator()) {
+            $spec['validators'] = array(
+                $validator,
+            );
+        }
 
         return $spec;
     }
@@ -203,7 +185,7 @@ class Checkbox extends Element implements InputProviderInterface
      */
     public function isChecked()
     {
-        return (bool)$this->value;
+        return $this->value === $this->getCheckedValue();
     }
 
     /**
@@ -214,7 +196,7 @@ class Checkbox extends Element implements InputProviderInterface
      */
     public function setChecked($value)
     {
-        $this->value = (bool)$value;
+        $this->value = $value ? $this->getCheckedValue() : $this->getUncheckedValue();
         return $this;
     }
 
@@ -226,11 +208,9 @@ class Checkbox extends Element implements InputProviderInterface
      */
     public function setValue($value)
     {
-        if (is_bool($value)) {
-            $this->value = $value;
-        } else {
-            $this->value = $value === $this->getCheckedValue();
-        }
+        // Cast to strings because POST data comes in string form
+        $checked = (string) $value === (string) $this->getCheckedValue();
+        $this->value = $checked ? $this->getCheckedValue() : $this->getUncheckedValue();
         return $this;
     }
 }

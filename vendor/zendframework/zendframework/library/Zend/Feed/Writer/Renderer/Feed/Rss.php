@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Writer\Renderer\Feed;
@@ -13,14 +12,12 @@ namespace Zend\Feed\Writer\Renderer\Feed;
 use DateTime;
 use DOMDocument;
 use DOMElement;
+use Zend\Feed\Uri;
 use Zend\Feed\Writer;
 use Zend\Feed\Writer\Renderer;
-use Zend\Uri;
-use Zend\Version\Version;
+use Zend\Feed\Writer\Version;
 
 /**
-* @category Zend
-* @package Zend_Feed_Writer
 */
 class Rss extends Renderer\AbstractRenderer implements Renderer\RendererInterface
 {
@@ -29,7 +26,7 @@ class Rss extends Renderer\AbstractRenderer implements Renderer\RendererInterfac
      *
      * @param  Writer\Feed $container
      */
-    public function __construct (Writer\Feed $container)
+    public function __construct(Writer\Feed $container)
     {
         parent::__construct($container);
     }
@@ -88,7 +85,8 @@ class Rss extends Renderer\AbstractRenderer implements Renderer\RendererInterfac
             $renderer->setRootElement($this->dom->documentElement);
             $renderer->render();
             $element = $renderer->getElement();
-            $imported = $this->dom->importNode($element, true);
+            $deep = version_compare(PHP_VERSION, '7', 'ge') ? 1 : true;
+            $imported = $this->dom->importNode($element, $deep);
             $channel->appendChild($imported);
         }
         return $this;
@@ -198,8 +196,11 @@ class Rss extends Renderer\AbstractRenderer implements Renderer\RendererInterfac
     protected function _setGenerator(DOMDocument $dom, DOMElement $root)
     {
         if (!$this->getDataContainer()->getGenerator()) {
-            $this->getDataContainer()->setGenerator('Zend_Feed_Writer',
-                Version::VERSION, 'http://framework.zend.com');
+            $this->getDataContainer()->setGenerator(
+                'Zend_Feed_Writer',
+                Version::VERSION,
+                'http://framework.zend.com'
+            );
         }
 
         $gdata = $this->getDataContainer()->getGenerator();
@@ -242,7 +243,7 @@ class Rss extends Renderer\AbstractRenderer implements Renderer\RendererInterfac
         $root->appendChild($link);
         $text = $dom->createTextNode($value);
         $link->appendChild($text);
-        if (!Uri\UriFactory::factory($value)->isValid()) {
+        if (!Uri::factory($value)->isValid()) {
             $link->setAttribute('isPermaLink', 'false');
         }
     }
@@ -320,7 +321,7 @@ class Rss extends Renderer\AbstractRenderer implements Renderer\RendererInterfac
         }
 
         if (empty($image['link']) || !is_string($image['link'])
-            || !Uri\UriFactory::factory($image['link'])->isValid()
+            || !Uri::factory($image['link'])->isValid()
         ) {
             $message = 'Invalid parameter: parameter \'link\''
             . ' must be a non-empty string and valid URI/IRI';

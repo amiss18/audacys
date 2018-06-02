@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Reader\Entry;
@@ -16,13 +15,8 @@ use DOMXPath;
 use Zend\Feed\Reader;
 use Zend\Feed\Reader\Exception;
 
-/**
-* @category Zend
-* @package Reader\Reader
-*/
 class Rss extends AbstractEntry implements EntryInterface
 {
-
     /**
      * XPath query for RDF
      *
@@ -82,7 +76,7 @@ class Rss extends AbstractEntry implements EntryInterface
             return $authors[$index];
         }
 
-        return null;
+        return;
     }
 
     /**
@@ -97,9 +91,9 @@ class Rss extends AbstractEntry implements EntryInterface
         }
 
         $authors = array();
-        $authors_dc = $this->getExtension('DublinCore')->getAuthors();
-        if (!empty($authors_dc)) {
-            foreach ($authors_dc as $author) {
+        $authorsDc = $this->getExtension('DublinCore')->getAuthors();
+        if (!empty($authorsDc)) {
+            foreach ($authorsDc as $author) {
                 $authors[] = array(
                     'name' => $author['name']
                 );
@@ -115,8 +109,6 @@ class Rss extends AbstractEntry implements EntryInterface
         if ($list->length) {
             foreach ($list as $author) {
                 $string = trim($author->nodeValue);
-                $email = null;
-                $name = null;
                 $data = array();
                 // Pretty rough parsing - but it's a catchall
                 if (preg_match("/^.*@[^ ]*/", $string, $matches)) {
@@ -194,7 +186,6 @@ class Rss extends AbstractEntry implements EntryInterface
             return $this->data['datemodified'];
         }
 
-        $dateModified = null;
         $date = null;
 
         if ($this->getType() !== Reader\Reader::TYPE_RSS_10
@@ -213,7 +204,7 @@ class Rss extends AbstractEntry implements EntryInterface
                             $date = date_create_from_format($standard, $dateModified);
                             break;
                         } catch (\Exception $e) {
-                            if ($standard == null) {
+                            if ($standard === null) {
                                 throw new Exception\RuntimeException(
                                     'Could not load date due to unrecognised'
                                     .' format (should follow RFC 822 or 2822):'
@@ -372,7 +363,7 @@ class Rss extends AbstractEntry implements EntryInterface
             return $this->data['links'][$index];
         }
 
-        return null;
+        return;
     }
 
     /**

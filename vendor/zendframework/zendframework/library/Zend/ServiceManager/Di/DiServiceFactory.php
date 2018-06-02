@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_ServiceManager
  */
 
 namespace Zend\ServiceManager\Di;
@@ -52,6 +51,8 @@ class DiServiceFactory extends Di implements FactoryInterface
     protected $serviceLocator = null;
 
     /**
+     * Constructor
+     *
      * @param \Zend\Di\Di $di
      * @param null|\Zend\Di\InstanceManager $name
      * @param array $parameters
@@ -72,13 +73,15 @@ class DiServiceFactory extends Di implements FactoryInterface
     }
 
     /**
+     * Create service
+     *
      * @param ServiceLocatorInterface $serviceLocator
      * @return object
      */
     public function createService(ServiceLocatorInterface $serviceLocator)
     {
         $this->serviceLocator = $serviceLocator;
-        return $this->get($this->name, $this->parameters, true);
+        return $this->get($this->name, $this->parameters);
     }
 
     /**
@@ -97,12 +100,9 @@ class DiServiceFactory extends Di implements FactoryInterface
         }
 
         try {
-
             $service = parent::get($name, $params);
             return $service;
-
         } catch (DiClassNotFoundException $e) {
-
             // allow this di service to get dependencies from the service locator AFTER trying di
             if ($this->useServiceLocator == self::USE_SL_AFTER_DI && $this->serviceLocator->has($name)) {
                 return $this->serviceLocator->get($name);
@@ -114,7 +114,5 @@ class DiServiceFactory extends Di implements FactoryInterface
                 );
             }
         }
-
     }
-
 }

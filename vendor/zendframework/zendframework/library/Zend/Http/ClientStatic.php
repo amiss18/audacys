@@ -3,37 +3,34 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Http
  */
 
 namespace Zend\Http;
 
-use Zend\Http\Client;
-
 /**
  * Http static client
- *
- * @category   Zend
- * @package    Zend\Http
  */
 class ClientStatic
 {
-
+    /**
+     * @var Client
+     */
     protected static $client;
 
     /**
      * Get the static HTTP client
      *
+     * @param array|Traversable $options
      * @return Client
      */
-    protected static function getStaticClient()
+    protected static function getStaticClient($options = null)
     {
-        if (!isset(self::$client)) {
-            self::$client = new Client();
+        if (!isset(static::$client) || $options !== null) {
+            static::$client = new Client(null, $options);
         }
-        return self::$client;
+        return static::$client;
     }
 
     /**
@@ -43,9 +40,10 @@ class ClientStatic
      * @param  array $query
      * @param  array $headers
      * @param  mixed $body
-     * @return Response|boolean
+     * @param  array|Traversable $clientOptions
+     * @return Response|bool
      */
-    public static function get($url, $query = array(), $headers = array(), $body = null)
+    public static function get($url, $query = array(), $headers = array(), $body = null, $clientOptions = null)
     {
         if (empty($url)) {
             return false;
@@ -64,10 +62,10 @@ class ClientStatic
         }
 
         if (!empty($body)) {
-            $request->setBody($body);
+            $request->setContent($body);
         }
 
-        return self::getStaticClient()->send($request);
+        return static::getStaticClient($clientOptions)->send($request);
     }
 
     /**
@@ -77,10 +75,11 @@ class ClientStatic
      * @param  array $params
      * @param  array $headers
      * @param  mixed $body
+     * @param  array|Traversable $clientOptions
      * @throws Exception\InvalidArgumentException
-     * @return Response|boolean
+     * @return Response|bool
      */
-    public static function post($url, $params, $headers = array(), $body = null)
+    public static function post($url, $params, $headers = array(), $body = null, $clientOptions = null)
     {
         if (empty($url)) {
             return false;
@@ -97,7 +96,7 @@ class ClientStatic
         }
 
         if (!isset($headers['Content-Type'])) {
-            $headers['Content-Type']= Client::ENC_URLENCODED;
+            $headers['Content-Type'] = Client::ENC_URLENCODED;
         }
 
         if (!empty($headers) && is_array($headers)) {
@@ -108,6 +107,6 @@ class ClientStatic
             $request->setContent($body);
         }
 
-        return self::getStaticClient()->send($request);
+        return static::getStaticClient($clientOptions)->send($request);
     }
 }

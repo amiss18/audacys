@@ -3,18 +3,16 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Sql\Platform\Mysql;
 
-use Zend\Db\Adapter\Adapter;
+use Zend\Db\Adapter\Driver\DriverInterface;
 use Zend\Db\Adapter\ParameterContainer;
 use Zend\Db\Adapter\Platform\PlatformInterface;
 use Zend\Db\Sql\Platform\PlatformDecoratorInterface;
-use Zend\Db\Adapter\StatementContainerInterface;
 use Zend\Db\Sql\Select;
 
 class SelectDecorator extends Select implements PlatformDecoratorInterface
@@ -22,69 +20,50 @@ class SelectDecorator extends Select implements PlatformDecoratorInterface
     /**
      * @var Select
      */
-    protected $select = null;
+    protected $subject = null;
 
     /**
      * @param Select $select
      */
     public function setSubject($select)
     {
-        $this->select = $select;
+        $this->subject = $select;
     }
 
-    /**
-     * @param Adapter $adapter
-     * @param StatementContainerInterface $statementContainer
-     */
-    public function prepareStatement(Adapter $adapter, StatementContainerInterface $statementContainer)
+    protected function localizeVariables()
     {
-        // localize variables
-        foreach (get_object_vars($this->select) as $name => $value) {
-            $this->{$name} = $value;
+        parent::localizeVariables();
+        if ($this->limit === null && $this->offset !== null) {
+            $this->specifications[self::LIMIT] = 'LIMIT 18446744073709551615';
         }
-        parent::prepareStatement($adapter, $statementContainer);
     }
 
-    /**
-     * @param PlatformInterface $platform
-     * @return string
-     */
-    public function getSqlString(PlatformInterface $platform = null)
+    protected function processLimit(PlatformInterface $platform, DriverInterface $driver = null, ParameterContainer $parameterContainer = null)
     {
-        // localize variables
-        foreach (get_object_vars($this->select) as $name => $value) {
-            $this->{$name} = $value;
+        if ($this->limit === null && $this->offset !== null) {
+            return array('');
         }
-        return parent::getSqlString($platform);
-    }
-
-    protected function processLimit(PlatformInterface $platform, Adapter $adapter = null, ParameterContainer $parameterContainer = null)
-    {
         if ($this->limit === null) {
-            return null;
+            return;
         }
-        if ($adapter) {
-            $driver = $adapter->getDriver();
-            $sql = $driver->formatParameterName('limit');
+        if ($parameterContainer) {
             $parameterContainer->offsetSet('limit', $this->limit, ParameterContainer::TYPE_INTEGER);
-        } else {
-            $sql = $this->limit;
+            return array($driver->formatParameterName('limit'));
         }
 
-        return array($sql);
+        return array($this->limit);
     }
 
-    protected function processOffset(PlatformInterface $platform, Adapter $adapter = null, ParameterContainer $parameterContainer = null)
+    protected function processOffset(PlatformInterface $platform, DriverInterface $driver = null, ParameterContainer $parameterContainer = null)
     {
         if ($this->offset === null) {
-            return null;
+            return;
         }
-        if ($adapter) {
+        if ($parameterContainer) {
             $parameterContainer->offsetSet('offset', $this->offset, ParameterContainer::TYPE_INTEGER);
-            return array($adapter->getDriver()->formatParameterName('offset'));
-        } else {
-            return array($this->offset);
+            return array($driver->formatParameterName('offset'));
         }
-    }
 
+        return array($this->offset);
+    }
 }

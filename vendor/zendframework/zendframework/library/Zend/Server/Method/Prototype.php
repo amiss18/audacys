@@ -3,19 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Server
  */
 
 namespace Zend\Server\Method;
 
 /**
  * Method prototype metadata
- *
- * @category   Zend
- * @package    Zend_Server
- * @subpackage Zend_Server_Method
  */
 class Prototype
 {
@@ -151,7 +146,7 @@ class Prototype
     public function getParameter($index)
     {
         if (!is_string($index) && !is_numeric($index)) {
-            return null;
+            return;
         }
         if (array_key_exists($index, $this->parameterNameMap)) {
             $index = $this->parameterNameMap[$index];
@@ -159,7 +154,7 @@ class Prototype
         if (array_key_exists($index, $this->parameters)) {
             return $this->parameters[$index];
         }
-        return null;
+        return;
     }
 
     /**

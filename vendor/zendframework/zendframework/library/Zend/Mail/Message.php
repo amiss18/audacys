@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail;
@@ -13,10 +12,6 @@ namespace Zend\Mail;
 use Traversable;
 use Zend\Mime;
 
-/**
- * @category   Zend
- * @package    Zend_Mail
- */
 class Message
 {
     /**
@@ -351,7 +346,7 @@ class Message
     {
         $headers = $this->getHeaders();
         if (!$headers->has('subject')) {
-            return null;
+            return;
         }
         $header = $headers->get('subject');
         return $header->getFieldValue();
@@ -377,7 +372,8 @@ class Message
             if (!$body instanceof Mime\Message) {
                 if (!method_exists($body, '__toString')) {
                     throw new Exception\InvalidArgumentException(sprintf(
-                        '%s expects object arguments of type Zend\Mime\Message or implementing __toString(); object of type "%s" received',
+                        '%s expects object arguments of type Zend\Mime\Message or implementing __toString();'
+                        . ' object of type "%s" received',
                         __METHOD__,
                         get_class($body)
                     ));
@@ -407,7 +403,7 @@ class Message
         $parts = $this->body->getParts();
         if (!empty($parts)) {
             $part = array_shift($parts);
-            $headers->addHeaders($part->getHeadersArray());
+            $headers->addHeaders($part->getHeadersArray("\r\n"));
         }
         return $this;
     }
@@ -443,7 +439,7 @@ class Message
      *
      * @param  string $headerName
      * @param  string $headerClass
-     * @return \Zend\Mail\Header\HeaderInterface
+     * @return Header\HeaderInterface|\ArrayIterator header instance or collection of headers
      */
     protected function getHeaderByName($headerName, $headerClass)
     {
@@ -515,11 +511,18 @@ class Message
         }
         if (!is_string($emailOrAddressOrList) && !$emailOrAddressOrList instanceof Address\AddressInterface) {
             throw new Exception\InvalidArgumentException(sprintf(
-                '%s expects a string, AddressInterface, array, AddressList, or Traversable as its first argument; received "%s"',
+                '%s expects a string, AddressInterface, array, AddressList, or Traversable as its first argument;'
+                . ' received "%s"',
                 $callingMethod,
                 (is_object($emailOrAddressOrList) ? get_class($emailOrAddressOrList) : gettype($emailOrAddressOrList))
             ));
         }
+
+        if (is_string($emailOrAddressOrList) && $name === null) {
+            $addressList->addFromString($emailOrAddressOrList);
+            return;
+        }
+
         $addressList->add($emailOrAddressOrList, $name);
     }
 
@@ -534,5 +537,26 @@ class Message
         return $headers->toString()
                . Headers::EOL
                . $this->getBodyText();
+    }
+
+    /**
+     * Instantiate from raw message string
+     *
+     * @todo   Restore body to Mime\Message
+     * @param  string $rawMessage
+     * @return Message
+     */
+    public static function fromString($rawMessage)
+    {
+        $message = new static();
+        $headers = null;
+        $content = null;
+        Mime\Decode::splitMessage($rawMessage, $headers, $content);
+        if ($headers->has('mime-version')) {
+            // todo - restore body to mime\message
+        }
+        $message->setHeaders($headers);
+        $message->setBody($content);
+        return $message;
     }
 }

@@ -3,28 +3,25 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_View
  */
 
 namespace Zend\View\Helper;
 
-use Zend\I18n\Translator\Translator;
+use Zend\I18n\Translator\TranslatorInterface as Translator;
 use Zend\I18n\Translator\TranslatorAwareInterface;
 use Zend\View\Exception;
 
 /**
  * Helper for setting and retrieving title element for HTML head
- *
- * @package    Zend_View
- * @subpackage Helper
  */
 class HeadTitle extends Placeholder\Container\AbstractStandalone implements
     TranslatorAwareInterface
 {
     /**
      * Registry key for placeholder
+     *
      * @var string
      */
     protected $regKey = 'Zend_View_Helper_HeadTitle';
@@ -62,7 +59,7 @@ class HeadTitle extends Placeholder\Container\AbstractStandalone implements
      *
      * @param  string $title
      * @param  string $setType
-     * @return \Zend\View\Helper\HeadTitle
+     * @return HeadTitle
      */
     public function __invoke($title = null, $setType = null)
     {
@@ -87,11 +84,67 @@ class HeadTitle extends Placeholder\Container\AbstractStandalone implements
     }
 
     /**
+     * Render title (wrapped by title tag)
+     *
+     * @param  string|null $indent
+     * @return string
+     */
+    public function toString($indent = null)
+    {
+        $indent = (null !== $indent)
+                ? $this->getWhitespace($indent)
+                : $this->getIndent();
+
+        $output = $this->renderTitle();
+
+        return $indent . '<title>' . $output . '</title>';
+    }
+
+    /**
+     * Render title string
+     *
+     * @return string
+     */
+    public function renderTitle()
+    {
+        $items = array();
+
+        if (null !== ($translator = $this->getTranslator())) {
+            foreach ($this as $item) {
+                $items[] = $translator->translate($item, $this->getTranslatorTextDomain());
+            }
+        } else {
+            foreach ($this as $item) {
+                $items[] = $item;
+            }
+        }
+
+        $separator = $this->getSeparator();
+        $output = '';
+
+        $prefix = $this->getPrefix();
+        if ($prefix) {
+            $output  .= $prefix;
+        }
+
+        $output .= implode($separator, $items);
+
+        $postfix = $this->getPostfix();
+        if ($postfix) {
+            $output .= $postfix;
+        }
+
+        $output = ($this->autoEscape) ? $this->escape($output) : $output;
+
+        return $output;
+    }
+
+    /**
      * Set a default order to add titles
      *
-     * @param string $setType
-     * @return HeadTitle
+     * @param  string $setType
      * @throws Exception\DomainException
+     * @return HeadTitle
      */
     public function setDefaultAttachOrder($setType)
     {
@@ -117,52 +170,6 @@ class HeadTitle extends Placeholder\Container\AbstractStandalone implements
     public function getDefaultAttachOrder()
     {
         return $this->defaultAttachOrder;
-    }
-
-    /**
-     * Turn helper into string
-     *
-     * @param  string|null $indent
-     * @return string
-     */
-    public function toString($indent = null)
-    {
-        $indent = (null !== $indent)
-                ? $this->getWhitespace($indent)
-                : $this->getIndent();
-
-        $items = array();
-
-        if (null !== ($translator = $this->getTranslator())) {
-            foreach ($this as $item) {
-                $items[] = $translator->translate(
-                    $item, $this->getTranslatorTextDomain()
-                );
-            }
-        } else {
-            foreach ($this as $item) {
-                $items[] = $item;
-            }
-        }
-
-        $separator = $this->getSeparator();
-        $output = '';
-
-        $prefix = $this->getPrefix();
-        if ($prefix) {
-            $output  .= $prefix;
-        }
-
-        $output .= implode($separator, $items);
-
-        $postfix = $this->getPostfix();
-        if ($postfix) {
-            $output .= $postfix;
-        }
-
-        $output = ($this->autoEscape) ? $this->escape($output) : $output;
-
-        return $indent . '<title>' . $output . '</title>';
     }
 
     // Translator methods - Good candidate to refactor as a trait with PHP 5.4
@@ -193,7 +200,7 @@ class HeadTitle extends Placeholder\Container\AbstractStandalone implements
     public function getTranslator()
     {
         if (! $this->isTranslatorEnabled()) {
-            return null;
+            return;
         }
 
         return $this->translator;

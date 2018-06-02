@@ -3,17 +3,19 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Header;
 
+use Zend\Mime\Mime;
+
 /**
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Header
+ * Subject header class methods.
+ *
+ * @see https://tools.ietf.org/html/rfc2822 RFC 2822
+ * @see https://tools.ietf.org/html/rfc2047 RFC 2047
  */
 class Subject implements UnstructuredInterface
 {
@@ -25,14 +27,14 @@ class Subject implements UnstructuredInterface
     /**
      * Header encoding
      *
-     * @var string
+     * @var null|string
      */
-    protected $encoding = 'ASCII';
+    protected $encoding;
 
     public static function fromString($headerLine)
     {
-        $decodedLine = iconv_mime_decode($headerLine, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
-        list($name, $value) = explode(': ', $decodedLine, 2);
+        list($name, $value) = GenericHeader::splitHeaderLine($headerLine);
+        $value = HeaderWrap::mimeDecodeValue($value);
 
         // check to ensure proper header type for this factory
         if (strtolower($name) !== 'subject') {
@@ -40,9 +42,6 @@ class Subject implements UnstructuredInterface
         }
 
         $header = new static();
-        if ($decodedLine != $headerLine) {
-            $header->setEncoding('UTF-8');
-        }
         $header->setSubject($value);
 
         return $header;
@@ -70,12 +69,26 @@ class Subject implements UnstructuredInterface
 
     public function getEncoding()
     {
+        if (! $this->encoding) {
+            $this->encoding = Mime::isPrintable($this->subject) ? 'ASCII' : 'UTF-8';
+        }
+
         return $this->encoding;
     }
 
     public function setSubject($subject)
     {
-        $this->subject = (string) $subject;
+        $subject = (string) $subject;
+
+        if (! HeaderWrap::canBeEncoded($subject)) {
+            throw new Exception\InvalidArgumentException(
+                'Subject value must be composed of printable US-ASCII or UTF-8 characters.'
+            );
+        }
+
+        $this->subject  = $subject;
+        $this->encoding = null;
+
         return $this;
     }
 

@@ -3,15 +3,13 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Form
  */
 
 namespace Zend\Form\Annotation;
 
 use ArrayObject;
-use ReflectionClass;
 use Zend\Code\Annotation\AnnotationCollection;
 use Zend\Code\Annotation\AnnotationManager;
 use Zend\Code\Annotation\Parser;
@@ -22,18 +20,20 @@ use Zend\EventManager\EventManagerAwareInterface;
 use Zend\EventManager\EventManagerInterface;
 use Zend\Form\Exception;
 use Zend\Form\Factory;
+use Zend\Form\FormFactoryAwareInterface;
 use Zend\Stdlib\ArrayUtils;
 
 /**
- * Parses a class' properties for annotations in order to create a form and
- * input filter definition.
- *
- * @category   Zend
- * @package    Zend_Form
- * @subpackage Annotation
+ * Parses the properties of a class for annotations in order to create a form
+ * and input filter definition.
  */
-class AnnotationBuilder implements EventManagerAwareInterface
+class AnnotationBuilder implements EventManagerAwareInterface, FormFactoryAwareInterface
 {
+    /**
+     * @var Parser\DoctrineAnnotationParser
+     */
+    protected $annotationParser;
+
     /**
      * @var AnnotationManager
      */
@@ -61,6 +61,7 @@ class AnnotationBuilder implements EventManagerAwareInterface
         'AllowEmpty',
         'Attributes',
         'ComposedObject',
+        'ContinueIfEmpty',
         'ErrorMessage',
         'Exclude',
         'Filter',
@@ -68,6 +69,7 @@ class AnnotationBuilder implements EventManagerAwareInterface
         'Hydrator',
         'Input',
         'InputFilter',
+        'Instance',
         'Name',
         'Object',
         'Options',
@@ -76,6 +78,11 @@ class AnnotationBuilder implements EventManagerAwareInterface
         'ValidationGroup',
         'Validator'
     );
+
+    /**
+     * @var bool
+     */
+    protected $preserveDefinedOrder = false;
 
     /**
      * Set form factory to use when building form from annotations
@@ -97,7 +104,7 @@ class AnnotationBuilder implements EventManagerAwareInterface
      */
     public function setAnnotationManager(AnnotationManager $annotationManager)
     {
-        $parser = new Parser\DoctrineAnnotationParser();
+        $parser = $this->getAnnotationParser();
         foreach ($this->defaultAnnotations as $annotationName) {
             $class = __NAMESPACE__ . '\\' . $annotationName;
             $parser->registerAnnotation($class);
@@ -219,6 +226,8 @@ class AnnotationBuilder implements EventManagerAwareInterface
 
         if (!isset($formSpec['input_filter'])) {
             $formSpec['input_filter'] = $filterSpec;
+        } elseif (is_array($formSpec['input_filter'])) {
+            $formSpec['input_filter'] = ArrayUtils::merge($filterSpec->getArrayCopy(), $formSpec['input_filter']);
         }
 
         return $formSpec;
@@ -322,15 +331,25 @@ class AnnotationBuilder implements EventManagerAwareInterface
             $events->trigger(__FUNCTION__, $this, $event);
         }
 
-        $filterSpec[$name] = $event->getParam('inputSpec');
+        // Since "type" is a reserved name in the filter specification,
+        // we need to add the specification without the name as the key.
+        // In all other cases, though, the name is fine.
+        if ($event->getParam('inputSpec')->count() > 1) {
+            if ($name === 'type') {
+                $filterSpec[] = $event->getParam('inputSpec');
+            } else {
+                $filterSpec[$name] = $event->getParam('inputSpec');
+            }
+        }
 
         $elementSpec = $event->getParam('elementSpec');
         $type        = (isset($elementSpec['spec']['type']))
             ? $elementSpec['spec']['type']
             : 'Zend\Form\Element';
 
-        // Compose as a fieldset or an element, based on specification type
-        if (self::isSubclassOf($type, 'Zend\Form\FieldsetInterface')) {
+        // Compose as a fieldset or an element, based on specification type.
+        // If preserve defined order is true, all elements are composed as elements to keep their ordering
+        if (!$this->preserveDefinedOrder() && is_subclass_of($type, 'Zend\Form\FieldsetInterface')) {
             if (!isset($formSpec['fieldsets'])) {
                 $formSpec['fieldsets'] = array();
             }
@@ -341,6 +360,24 @@ class AnnotationBuilder implements EventManagerAwareInterface
             }
             $formSpec['elements'][] = $elementSpec;
         }
+    }
+
+    /**
+     * @param bool $preserveDefinedOrder
+     * @return $this
+     */
+    public function setPreserveDefinedOrder($preserveDefinedOrder)
+    {
+        $this->preserveDefinedOrder = (bool) $preserveDefinedOrder;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function preserveDefinedOrder()
+    {
+        return $this->preserveDefinedOrder;
     }
 
     /**
@@ -378,10 +415,24 @@ class AnnotationBuilder implements EventManagerAwareInterface
     }
 
     /**
+     * @return \Zend\Code\Annotation\Parser\DoctrineAnnotationParser
+     */
+    public function getAnnotationParser()
+    {
+        if (null === $this->annotationParser) {
+            $this->annotationParser = new Parser\DoctrineAnnotationParser();
+        }
+
+        return $this->annotationParser;
+    }
+
+    /**
      * Checks if the object has this class as one of its parents
      *
      * @see https://bugs.php.net/bug.php?id=53727
      * @see https://github.com/zendframework/zf2/pull/1807
+     *
+     * @deprecated since zf 2.3 requires PHP >= 5.3.23
      *
      * @param string $className
      * @param string $type
@@ -389,16 +440,6 @@ class AnnotationBuilder implements EventManagerAwareInterface
      */
     protected static function isSubclassOf($className, $type)
     {
-        if (is_subclass_of($className, $type)) {
-            return true;
-        }
-        if (version_compare(PHP_VERSION, '5.3.7', '>=')) {
-            return false;
-        }
-        if (!interface_exists($type)) {
-            return false;
-        }
-        $r = new ReflectionClass($className);
-        return $r->implementsInterface($type);
+        return is_subclass_of($className, $type);
     }
 }

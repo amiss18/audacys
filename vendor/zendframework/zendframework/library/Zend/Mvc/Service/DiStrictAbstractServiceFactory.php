@@ -3,20 +3,19 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_ServiceManager
  */
 
 namespace Zend\Mvc\Service;
 
-use Zend\ServiceManager\ServiceLocatorInterface;
-use Zend\ServiceManager\AbstractFactoryInterface;
-use Zend\ServiceManager\AbstractPluginManager;
-use Zend\ServiceManager\Exception;
 use Zend\Di\Di;
 use Zend\Di\Exception\ClassNotFoundException;
 use Zend\Mvc\Exception\DomainException;
+use Zend\ServiceManager\AbstractFactoryInterface;
+use Zend\ServiceManager\AbstractPluginManager;
+use Zend\ServiceManager\Exception;
+use Zend\ServiceManager\ServiceLocatorInterface;
 
 class DiStrictAbstractServiceFactory extends Di implements AbstractFactoryInterface
 {
@@ -87,7 +86,6 @@ class DiStrictAbstractServiceFactory extends Di implements AbstractFactoryInterf
         if (!isset($this->allowedServiceNames[$requestedName])) {
             throw new Exception\InvalidServiceNameException('Service "' . $requestedName . '" is not whitelisted');
         }
-
 
         if ($serviceLocator instanceof AbstractPluginManager) {
             /* @var $serviceLocator AbstractPluginManager */

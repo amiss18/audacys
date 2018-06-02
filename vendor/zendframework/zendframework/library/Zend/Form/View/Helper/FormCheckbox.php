@@ -3,23 +3,16 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Form
  */
 
 namespace Zend\Form\View\Helper;
 
-use Traversable;
 use Zend\Form\ElementInterface;
 use Zend\Form\Element\Checkbox as CheckboxElement;
 use Zend\Form\Exception;
 
-/**
- * @category   Zend
- * @package    Zend_Form
- * @subpackage View
- */
 class FormCheckbox extends FormInput
 {
     /**
@@ -65,8 +58,9 @@ class FormCheckbox extends FormInput
 
         if ($element->useHiddenElement()) {
             $hiddenAttributes = array(
-                'name'  => $attributes['name'],
-                'value' => $element->getUncheckedValue(),
+                'disabled' => isset($attributes['disabled']) ? $attributes['disabled'] : false,
+                'name'     => $attributes['name'],
+                'value'    => $element->getUncheckedValue(),
             );
 
             $rendered = sprintf(

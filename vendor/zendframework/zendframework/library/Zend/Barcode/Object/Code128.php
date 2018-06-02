@@ -3,25 +3,21 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Barcode
  */
 
 namespace Zend\Barcode\Object;
 
 /**
  * Class for generate Code128 barcode
- *
- * @category   Zend
- * @package    Zend_Barcode
  */
 class Code128 extends AbstractObject
 {
     /**
      * Drawing of checksum
      * (even if it's sometime optional, most of time it's required)
-     * @var boolean
+     * @var bool
      */
     protected $withChecksum = true;
 
@@ -119,7 +115,7 @@ class Code128 extends AbstractObject
 
     /**
      * Width of the barcode (in pixels)
-     * @return integer
+     * @return int
      */
     protected function calculateBarcodeWidth()
     {
@@ -182,13 +178,13 @@ class Code128 extends AbstractObject
     protected static function _isDigit($string, $pos, $length = 2)
     {
         if ($pos + $length > strlen($string)) {
-           return false;
+            return false;
         }
 
         for ($i = $pos; $i < $pos + $length; $i++) {
-              if (!is_numeric($string[$i])) {
-                  return false;
-              }
+            if (!is_numeric($string[$i])) {
+                return false;
+            }
         }
         return true;
     }
@@ -210,16 +206,14 @@ class Code128 extends AbstractObject
         }
 
         $currentCharset = null;
-        $sum = 0;
-        $fak = 0;
         $result = array();
 
-        for ($pos = 0; $pos < strlen($string); $pos++) {
+        $strlen = strlen($string);
+        for ($pos = 0; $pos < $strlen; $pos++) {
             $char = $string[$pos];
-            $code = null;
 
-            if (self::_isDigit($string, $pos, 4) && $currentCharset != 'C'
-             || self::_isDigit($string, $pos, 2) && $currentCharset == 'C') {
+            if (static::_isDigit($string, $pos, 4) && $currentCharset != 'C'
+             || static::_isDigit($string, $pos, 2) && $currentCharset == 'C') {
                 /**
                  * Switch to C if the next 4 chars are numeric or stay C if the next 2
                  * chars are numeric
@@ -253,7 +247,7 @@ class Code128 extends AbstractObject
                 if ($pos == 0) {
                     $code = array_search("START A", $this->charSets['A']);
                 } else {
-                    $code =array_search("Code A", $this->charSets[$currentCharset]);
+                    $code = array_search("Code A", $this->charSets[$currentCharset]);
                 }
                 $result[] = $code;
                 $currentCharset = 'A';

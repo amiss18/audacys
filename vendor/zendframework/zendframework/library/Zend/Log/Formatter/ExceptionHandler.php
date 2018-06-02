@@ -3,20 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Log
  */
 
 namespace Zend\Log\Formatter;
 
 use DateTime;
 
-/**
- * @category   Zend
- * @package    Zend_Log
- * @subpackage Formatter
- */
 class ExceptionHandler implements FormatterInterface
 {
     /**
@@ -85,11 +79,11 @@ class ExceptionHandler implements FormatterInterface
     protected function getType($type)
     {
         switch ($type) {
-            case "::" :
+            case "::":
                 return "static";
-            case "->" :
+            case "->":
                 return "method";
-            default :
+            default:
                 return $type;
         }
     }

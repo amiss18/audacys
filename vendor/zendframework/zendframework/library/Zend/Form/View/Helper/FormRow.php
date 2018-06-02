@@ -3,71 +3,119 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Form
  */
 
 namespace Zend\Form\View\Helper;
 
+use Zend\Form\Element\Button;
+use Zend\Form\Element\MonthSelect;
+use Zend\Form\Element\Captcha;
 use Zend\Form\ElementInterface;
 use Zend\Form\Exception;
-use Zend\Form\View\Helper\AbstractHelper;
+use Zend\Form\LabelAwareInterface;
 
-/**
- * @category   Zend
- * @package    Zend_Form
- * @subpackage View
- */
 class FormRow extends AbstractHelper
 {
     const LABEL_APPEND  = 'append';
     const LABEL_PREPEND = 'prepend';
 
     /**
-     * @var string
-     */
-    protected $labelPosition = self::LABEL_PREPEND;
-
-    /**
-     * @var bool
-     */
-    protected $renderErrors = true;
-
-    /**
-     * @var array
-     */
-    protected $labelAttributes;
-
-    /**
+     * The class that is added to element that have errors
+     *
      * @var string
      */
     protected $inputErrorClass = 'input-error';
 
     /**
+     * The attributes for the row label
+     *
+     * @var array
+     */
+    protected $labelAttributes;
+
+    /**
+     * Where will be label rendered?
+     *
+     * @var string
+     */
+    protected $labelPosition = self::LABEL_PREPEND;
+
+    /**
+     * Are the errors are rendered by this helper?
+     *
+     * @var bool
+     */
+    protected $renderErrors = true;
+
+    /**
+     * Form label helper instance
+     *
      * @var FormLabel
      */
     protected $labelHelper;
 
     /**
+     * Form element helper instance
+     *
      * @var FormElement
      */
     protected $elementHelper;
 
     /**
+     * Form element errors helper instance
+     *
      * @var FormElementErrors
      */
     protected $elementErrorsHelper;
 
+    /**
+     * @var string
+     */
+    protected $partial;
+
+    /**
+     * Invoke helper as functor
+     *
+     * Proxies to {@link render()}.
+     *
+     * @param  null|ElementInterface $element
+     * @param  null|string           $labelPosition
+     * @param  bool                  $renderErrors
+     * @param  string|null           $partial
+     * @return string|FormRow
+     */
+    public function __invoke(ElementInterface $element = null, $labelPosition = null, $renderErrors = null, $partial = null)
+    {
+        if (!$element) {
+            return $this;
+        }
+
+        if (is_null($labelPosition)) {
+            $labelPosition = $this->getLabelPosition();
+        }
+
+        if ($renderErrors !== null) {
+            $this->setRenderErrors($renderErrors);
+        }
+
+        if ($partial !== null) {
+            $this->setPartial($partial);
+        }
+
+        return $this->render($element, $labelPosition);
+    }
 
     /**
      * Utility form helper that renders a label (if it exists), an element and errors
      *
-     * @param ElementInterface $element
-     * @return string
+     * @param  ElementInterface $element
+     * @param  null|string      $labelPosition
      * @throws \Zend\Form\Exception\DomainException
+     * @return string
      */
-    public function render(ElementInterface $element)
+    public function render(ElementInterface $element, $labelPosition = null)
     {
         $escapeHtmlHelper    = $this->getEscapeHtmlHelper();
         $labelHelper         = $this->getLabelHelper();
@@ -76,28 +124,56 @@ class FormRow extends AbstractHelper
 
         $label           = $element->getLabel();
         $inputErrorClass = $this->getInputErrorClass();
-        $elementErrors   = $elementErrorsHelper->render($element);
+
+        if (is_null($labelPosition)) {
+            $labelPosition = $this->labelPosition;
+        }
+
+        if (isset($label) && '' !== $label) {
+            // Translate the label
+            if (null !== ($translator = $this->getTranslator())) {
+                $label = $translator->translate($label, $this->getTranslatorTextDomain());
+            }
+        }
 
         // Does this element have errors ?
-        if (!empty($elementErrors) && !empty($inputErrorClass)) {
+        if (count($element->getMessages()) > 0 && !empty($inputErrorClass)) {
             $classAttributes = ($element->hasAttribute('class') ? $element->getAttribute('class') . ' ' : '');
             $classAttributes = $classAttributes . $inputErrorClass;
 
             $element->setAttribute('class', $classAttributes);
         }
 
+        if ($this->partial) {
+            $vars = array(
+                'element'           => $element,
+                'label'             => $label,
+                'labelAttributes'   => $this->labelAttributes,
+                'labelPosition'     => $labelPosition,
+                'renderErrors'      => $this->renderErrors,
+            );
+
+            return $this->view->render($this->partial, $vars);
+        }
+
+        if ($this->renderErrors) {
+            $elementErrors = $elementErrorsHelper->render($element);
+        }
+
         $elementString = $elementHelper->render($element);
 
-        if (isset($label) && '' !== $label) {
-            // Translate the label
-            if (null !== ($translator = $this->getTranslator())) {
-                $label = $translator->translate(
-                    $label, $this->getTranslatorTextDomain()
-                );
+        // hidden elements do not need a <label> -https://github.com/zendframework/zf2/issues/5607
+        $type = $element->getAttribute('type');
+        if (isset($label) && '' !== $label && $type !== 'hidden') {
+            $labelAttributes = array();
+
+            if ($element instanceof LabelAwareInterface) {
+                $labelAttributes = $element->getLabelAttributes();
             }
 
-            $label = $escapeHtmlHelper($label);
-            $labelAttributes = $element->getLabelAttributes();
+            if (! $element instanceof LabelAwareInterface || ! $element->getLabelOption('disable_html_escape')) {
+                $label = $escapeHtmlHelper($label);
+            }
 
             if (empty($labelAttributes)) {
                 $labelAttributes = $this->labelAttributes;
@@ -105,27 +181,46 @@ class FormRow extends AbstractHelper
 
             // Multicheckbox elements have to be handled differently as the HTML standard does not allow nested
             // labels. The semantic way is to group them inside a fieldset
-            $type = $element->getAttribute('type');
-            if ($type === 'multi_checkbox' || $type === 'radio') {
+            if ($type === 'multi_checkbox'
+                || $type === 'radio'
+                || $element instanceof MonthSelect
+                || $element instanceof Captcha
+            ) {
                 $markup = sprintf(
                     '<fieldset><legend>%s</legend>%s</fieldset>',
                     $label,
-                    $elementString);
+                    $elementString
+                );
             } else {
-                if ($element->hasAttribute('id')) {
-                    $labelOpen = $labelHelper($element);
+                // Ensure element and label will be separated if element has an `id`-attribute.
+                // If element has label option `always_wrap` it will be nested in any case.
+                if ($element->hasAttribute('id')
+                    && ($element instanceof LabelAwareInterface && !$element->getLabelOption('always_wrap'))
+                ) {
+                    $labelOpen = '';
                     $labelClose = '';
-                    $label = '';
+                    $label = $labelHelper($element);
                 } else {
                     $labelOpen  = $labelHelper->openTag($labelAttributes);
                     $labelClose = $labelHelper->closeTag();
                 }
 
-                if ($label !== '') {
+                if ($label !== '' && (!$element->hasAttribute('id'))
+                    || ($element instanceof LabelAwareInterface && $element->getLabelOption('always_wrap'))
+                ) {
                     $label = '<span>' . $label . '</span>';
                 }
 
-                switch ($this->labelPosition) {
+                // Button element is a special case, because label is always rendered inside it
+                if ($element instanceof Button) {
+                    $labelOpen = $labelClose = $label = '';
+                }
+
+                if ($element instanceof LabelAwareInterface && $element->getLabelOption('label_position')) {
+                    $labelPosition = $element->getLabelOption('label_position');
+                }
+
+                switch ($labelPosition) {
                     case self::LABEL_PREPEND:
                         $markup = $labelOpen . $label . $elementString . $labelClose;
                         break;
@@ -134,10 +229,10 @@ class FormRow extends AbstractHelper
                         $markup = $labelOpen . $elementString . $label . $labelClose;
                         break;
                 }
+            }
 
-                if ($this->renderErrors) {
-                    $markup .= $elementErrors;
-                }
+            if ($this->renderErrors) {
+                $markup .= $elementErrors;
             }
         } else {
             if ($this->renderErrors) {
@@ -151,36 +246,55 @@ class FormRow extends AbstractHelper
     }
 
     /**
-     * Invoke helper as functor
+     * Set the class that is added to element that have errors
      *
-     * Proxies to {@link render()}.
-     *
-     * @param null|ElementInterface $element
-     * @param null|string           $labelPosition
-     * @param bool                  $renderErrors
-     * @return string|FormRow
+     * @param  string $inputErrorClass
+     * @return FormRow
      */
-    public function __invoke(ElementInterface $element = null, $labelPosition = null, $renderErrors = true)
+    public function setInputErrorClass($inputErrorClass)
     {
-        if (!$element) {
-            return $this;
-        }
+        $this->inputErrorClass = $inputErrorClass;
+        return $this;
+    }
 
-        if ($labelPosition !== null) {
-            $this->setLabelPosition($labelPosition);
-        }
+    /**
+     * Get the class that is added to element that have errors
+     *
+     * @return string
+     */
+    public function getInputErrorClass()
+    {
+        return $this->inputErrorClass;
+    }
 
-        $this->setRenderErrors($renderErrors);
+    /**
+     * Set the attributes for the row label
+     *
+     * @param  array $labelAttributes
+     * @return FormRow
+     */
+    public function setLabelAttributes($labelAttributes)
+    {
+        $this->labelAttributes = $labelAttributes;
+        return $this;
+    }
 
-        return $this->render($element);
+    /**
+     * Get the attributes for the row label
+     *
+     * @return array
+     */
+    public function getLabelAttributes()
+    {
+        return $this->labelAttributes;
     }
 
     /**
      * Set the label position
      *
-     * @param $labelPosition
-     * @return FormRow
+     * @param  string $labelPosition
      * @throws \Zend\Form\Exception\InvalidArgumentException
+     * @return FormRow
      */
     public function setLabelPosition($labelPosition)
     {
@@ -210,7 +324,7 @@ class FormRow extends AbstractHelper
     }
 
     /**
-     * Are the errors rendered by this helper ?
+     * Set if the errors are rendered by this helper
      *
      * @param  bool $renderErrors
      * @return FormRow
@@ -222,6 +336,8 @@ class FormRow extends AbstractHelper
     }
 
     /**
+     * Retrieve if the errors are rendered by this helper
+     *
      * @return bool
      */
     public function getRenderErrors()
@@ -230,47 +346,25 @@ class FormRow extends AbstractHelper
     }
 
     /**
-     * Set the attributes for the row label
+     * Set a partial view script to use for rendering the row
      *
-     * @param  array $labelAttributes
+     * @param null|string $partial
      * @return FormRow
      */
-    public function setLabelAttributes($labelAttributes)
+    public function setPartial($partial)
     {
-        $this->labelAttributes = $labelAttributes;
+        $this->partial = $partial;
         return $this;
     }
 
     /**
-     * Get the attributes for the row label
+     * Retrieve current partial
      *
-     * @return array
+     * @return null|string
      */
-    public function getLabelAttributes()
+    public function getPartial()
     {
-        return $this->labelAttributes;
-    }
-
-    /**
-     * Set the class that is added to element that have errors
-     *
-     * @param  string $inputErrorClass
-     * @return FormRow
-     */
-    public function setInputErrorClass($inputErrorClass)
-    {
-        $this->inputErrorClass = $inputErrorClass;
-        return $this;
-    }
-
-    /**
-     * Get the class that is added to element that have errors
-     *
-     * @return string
-     */
-    public function getInputErrorClass()
-    {
-        return $this->inputErrorClass;
+        return $this->partial;
     }
 
     /**

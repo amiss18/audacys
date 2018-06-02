@@ -3,20 +3,18 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_XmlRpc
  */
 
 namespace Zend\XmlRpc;
+
+use ZendXml\Security as XmlSecurity;
 
 /**
  * XmlRpc Response
  *
  * Container for accessing an XMLRPC return value and creating the XML response.
- *
- * @category   Zend
- * @package    Zend_XmlRpc
  */
 class Response
 {
@@ -119,7 +117,7 @@ class Response
     /**
      * Is the response a fault response?
      *
-     * @return boolean
+     * @return bool
      */
     public function isFault()
     {
@@ -144,7 +142,7 @@ class Response
      *
      * @param string $response
      * @throws Exception\ValueException if invalid XML
-     * @return boolean True if a valid XMLRPC response, false if a fault
+     * @return bool True if a valid XMLRPC response, false if a fault
      * response or invalid input
      */
     public function loadXml($response)
@@ -155,28 +153,9 @@ class Response
             return false;
         }
 
-        // @see ZF-12293 - disable external entities for security purposes
-        $loadEntities         = libxml_disable_entity_loader(true);
-        $useInternalXmlErrors = libxml_use_internal_errors(true);
         try {
-            $dom = new \DOMDocument;
-            $dom->loadXML($response);
-            foreach ($dom->childNodes as $child) {
-                if ($child->nodeType === XML_DOCUMENT_TYPE_NODE) {
-                    throw new Exception\ValueException(
-                        'Invalid XML: Detected use of illegal DOCTYPE'
-                    );
-                }
-            }
-            // TODO: Locate why this passes tests but a simplexml import doesn't
-            //$xml = simplexml_import_dom($dom);
-            $xml = new \SimpleXMLElement($response);
-            libxml_disable_entity_loader($loadEntities);
-            libxml_use_internal_errors($useInternalXmlErrors);
-        } catch (\Exception $e) {
-            libxml_disable_entity_loader($loadEntities);
-            libxml_use_internal_errors($useInternalXmlErrors);
-            // Not valid XML
+            $xml = XmlSecurity::scan($response);
+        } catch (\ZendXml\Exception\RuntimeException $e) {
             $this->fault = new Fault(651);
             $this->fault->setEncoding($this->getEncoding());
             return false;

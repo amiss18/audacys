@@ -3,19 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Validator
  */
 
 namespace Zend\Validator;
 
 use Traversable;
 
-/**
- * @category   Zend
- * @package    Zend_Validate
- */
 class Barcode extends AbstractValidator
 {
     const INVALID        = 'barcodeInvalid';
@@ -96,14 +91,19 @@ class Barcode extends AbstractValidator
                 throw new Exception\InvalidArgumentException('Barcode adapter matching "' . $adapter . '" not found');
             }
 
-            $this->options['adapter'] = new $adapter($options);
+            $adapter = new $adapter($options);
         }
 
-        if (!$this->options['adapter'] instanceof Barcode\AdapterInterface) {
+        if (!$adapter instanceof Barcode\AdapterInterface) {
             throw new Exception\InvalidArgumentException(
-                "Adapter $adapter does not implement Zend\\Validate\\Barcode\\AdapterInterface"
+                sprintf(
+                    "Adapter %s does not implement Zend\\Validator\\Barcode\\AdapterInterface",
+                    (is_object($adapter) ? get_class($adapter) : gettype($adapter))
+                )
             );
         }
+
+        $this->options['adapter'] = $adapter;
 
         return $this;
     }
@@ -121,8 +121,8 @@ class Barcode extends AbstractValidator
     /**
      * Sets if checksum should be validated, if no value is given the actual setting is returned
      *
-     * @param  boolean $checksum
-     * @return boolean
+     * @param  bool $checksum
+     * @return bool
      */
     public function useChecksum($checksum = null)
     {
@@ -135,7 +135,7 @@ class Barcode extends AbstractValidator
      * Returns true if and only if $value contains a valid barcode
      *
      * @param  string $value
-     * @return boolean
+     * @return bool
      */
     public function isValid($value)
     {

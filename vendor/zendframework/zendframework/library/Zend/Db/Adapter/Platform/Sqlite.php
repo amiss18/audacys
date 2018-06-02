@@ -3,25 +3,63 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Adapter\Platform;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Adapter
- */
-class Sqlite implements PlatformInterface
+use Zend\Db\Adapter\Driver\DriverInterface;
+use Zend\Db\Adapter\Driver\Pdo;
+use Zend\Db\Adapter\Exception;
+
+class Sqlite extends AbstractPlatform
 {
+    /**
+     * {@inheritDoc}
+     */
+    protected $quoteIdentifier = array('"','"');
 
     /**
-     * Get name
+     * {@inheritDoc}
+     */
+    protected $quoteIdentifierTo = '\'';
+
+    /**
+     * @var \PDO
+     */
+    protected $resource = null;
+
+    /**
+     * @param null|\Zend\Db\Adapter\Driver\Pdo\Pdo||\PDO $driver
+     */
+    public function __construct($driver = null)
+    {
+        if ($driver) {
+            $this->setDriver($driver);
+        }
+    }
+
+    /**
+     * @param \Zend\Db\Adapter\Driver\Pdo\Pdo|\PDO $driver
+     * @throws \Zend\Db\Adapter\Exception\InvalidArgumentException
      *
-     * @return string
+     * @return self
+     */
+    public function setDriver($driver)
+    {
+        if (($driver instanceof \PDO && $driver->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'sqlite')
+            || ($driver instanceof Pdo\Pdo && $driver->getDatabasePlatformName() == 'Sqlite')
+        ) {
+            $this->resource = $driver;
+            return $this;
+        }
+
+        throw new Exception\InvalidArgumentException('$driver must be a Sqlite PDO Zend\Db\Adapter\Driver, Sqlite PDO instance');
+    }
+
+    /**
+     * {@inheritDoc}
      */
     public function getName()
     {
@@ -29,115 +67,38 @@ class Sqlite implements PlatformInterface
     }
 
     /**
-     * Get quote identifier symbol
-     *
-     * @return string
-     */
-    public function getQuoteIdentifierSymbol()
-    {
-        return '"';
-    }
-
-    /**
-     * Quote identifier
-     *
-     * @param  string $identifier
-     * @return string
-     */
-    public function quoteIdentifier($identifier)
-    {
-        return '"' . str_replace('"', '\\' . '"', $identifier) . '"';
-    }
-
-    /**
-     * Quote identifier chain
-     *
-     * @param string|string[] $identifierChain
-     * @return string
-     */
-    public function quoteIdentifierChain($identifierChain)
-    {
-        $identifierChain = str_replace('"', '\\"', $identifierChain);
-        if (is_array($identifierChain)) {
-            $identifierChain = implode('"."', $identifierChain);
-        }
-        return '"' . $identifierChain . '"';
-    }
-
-    /**
-     * Get quote value symbol
-     *
-     * @return string
-     */
-    public function getQuoteValueSymbol()
-    {
-        return '\'';
-    }
-
-    /**
-     * Quote value
-     *
-     * @param  string $value
-     * @return string
+     * {@inheritDoc}
      */
     public function quoteValue($value)
     {
-        return '\'' . str_replace('\'', '\\' . '\'', $value) . '\'';
-    }
+        $resource = $this->resource;
 
-    /**
-     * Quote value list
-     *
-     * @param string|string[] $valueList
-     * @return string
-     */
-    public function quoteValueList($valueList)
-    {
-        $valueList = str_replace('\'', '\\' . '\'', $valueList);
-        if (is_array($valueList)) {
-            $valueList = implode('\', \'', $valueList);
+        if ($resource instanceof DriverInterface) {
+            $resource = $resource->getConnection()->getResource();
         }
-        return '\'' . $valueList . '\'';
-    }
 
-    /**
-     * Get identifier separator
-     *
-     * @return string
-     */
-    public function getIdentifierSeparator()
-    {
-        return '.';
-    }
-
-    /**
-     * Quote identifier in fragment
-     *
-     * @param  string $identifier
-     * @param  array $safeWords
-     * @return string
-     */
-    public function quoteIdentifierInFragment($identifier, array $safeWords = array())
-    {
-        $parts = preg_split('#([\.\s\W])#', $identifier, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
-        foreach ($parts as $i => $part) {
-            if ($safeWords && in_array($part, $safeWords)) {
-                continue;
-            }
-            switch ($part) {
-                case ' ':
-                case '.':
-                case '*':
-                case 'AS':
-                case 'As':
-                case 'aS':
-                case 'as':
-                    break;
-                default:
-                    $parts[$i] = '"' . str_replace('"', '\\' . '"', $part) . '"';
-            }
+        if ($resource instanceof \PDO) {
+            return $resource->quote($value);
         }
-        return implode('', $parts);
+
+        return parent::quoteValue($value);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function quoteTrustedValue($value)
+    {
+        $resource = $this->resource;
+
+        if ($resource instanceof DriverInterface) {
+            $resource = $resource->getConnection()->getResource();
+        }
+
+        if ($resource instanceof \PDO) {
+            return $resource->quote($value);
+        }
+
+        return parent::quoteTrustedValue($value);
+    }
 }

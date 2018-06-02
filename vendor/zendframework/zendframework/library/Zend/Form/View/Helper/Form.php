@@ -3,21 +3,18 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Form
  */
 
 namespace Zend\Form\View\Helper;
 
+use Zend\Form\FieldsetInterface;
 use Zend\Form\FormInterface;
+use Zend\View\Helper\Doctype;
 
 /**
  * View helper for rendering Form objects
- *
- * @category   Zend
- * @package    Zend_Form
- * @subpackage View
  */
 class Form extends AbstractHelper
 {
@@ -40,11 +37,41 @@ class Form extends AbstractHelper
     /**
      * Invoke as function
      *
-     * @return Form
+     * @param  null|FormInterface $form
+     * @return Form|string
      */
-    public function __invoke()
+    public function __invoke(FormInterface $form = null)
     {
-        return $this;
+        if (!$form) {
+            return $this;
+        }
+
+        return $this->render($form);
+    }
+
+    /**
+     * Render a form from the provided $form,
+     *
+     * @param  FormInterface $form
+     * @return string
+     */
+    public function render(FormInterface $form)
+    {
+        if (method_exists($form, 'prepare')) {
+            $form->prepare();
+        }
+
+        $formContent = '';
+
+        foreach ($form as $element) {
+            if ($element instanceof FieldsetInterface) {
+                $formContent.= $this->getView()->formCollection($element);
+            } else {
+                $formContent.= $this->getView()->formRow($element);
+            }
+        }
+
+        return $this->openTag($form) . $formContent . $this->closeTag();
     }
 
     /**
@@ -55,10 +82,15 @@ class Form extends AbstractHelper
      */
     public function openTag(FormInterface $form = null)
     {
-        $attributes = array(
-            'action' => '',
-            'method' => 'get',
-        );
+        $doctype    = $this->getDoctype();
+        $attributes = array();
+
+        if (! (Doctype::HTML5 === $doctype || Doctype::XHTML5 === $doctype)) {
+            $attributes = array(
+                'action' => '',
+                'method' => 'get',
+            );
+        }
 
         if ($form instanceof FormInterface) {
             $formAttributes = $form->getAttributes();
@@ -68,8 +100,11 @@ class Form extends AbstractHelper
             $attributes = array_merge($attributes, $formAttributes);
         }
 
-        $tag = sprintf('<form %s>', $this->createAttributesString($attributes));
-        return $tag;
+        if ($attributes) {
+            return sprintf('<form %s>', $this->createAttributesString($attributes));
+        }
+
+        return '<form>';
     }
 
     /**

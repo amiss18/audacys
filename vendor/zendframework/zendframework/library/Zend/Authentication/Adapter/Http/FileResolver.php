@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Authentication
  */
 
 namespace Zend\Authentication\Adapter\Http;
@@ -14,10 +13,6 @@ use Zend\Stdlib\ErrorHandler;
 
 /**
  * HTTP Authentication File Resolver
- *
- * @category   Zend
- * @package    Zend_Authentication
- * @subpackage Adapter_Http
  */
 class FileResolver implements ResolverInterface
 {
@@ -93,14 +88,16 @@ class FileResolver implements ResolverInterface
         if (empty($username)) {
             throw new Exception\InvalidArgumentException('Username is required');
         } elseif (!ctype_print($username) || strpos($username, ':') !== false) {
-            throw new Exception\InvalidArgumentException('Username must consist only of printable characters, '
-                                                              . 'excluding the colon');
+            throw new Exception\InvalidArgumentException(
+                'Username must consist only of printable characters, excluding the colon'
+            );
         }
         if (empty($realm)) {
             throw new Exception\InvalidArgumentException('Realm is required');
         } elseif (!ctype_print($realm) || strpos($realm, ':') !== false) {
-            throw new Exception\InvalidArgumentException('Realm must consist only of printable characters, '
-                                                              . 'excluding the colon.');
+            throw new Exception\InvalidArgumentException(
+                'Realm must consist only of printable characters, excluding the colon.'
+            );
         }
 
         // Open file, read through looking for matching credentials

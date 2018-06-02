@@ -3,23 +3,17 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Reader\Extension\DublinCore;
 
 use DateTime;
-use DOMElement;
 use Zend\Feed\Reader;
 use Zend\Feed\Reader\Collection;
 use Zend\Feed\Reader\Extension;
 
-/**
-* @category Zend
-* @package Reader\Reader
-*/
 class Entry extends Extension\AbstractEntry
 {
     /**
@@ -36,7 +30,7 @@ class Entry extends Extension\AbstractEntry
             return $authors[$index];
         }
 
-        return null;
+        return;
     }
 
     /**
@@ -51,16 +45,16 @@ class Entry extends Extension\AbstractEntry
         }
 
         $authors = array();
-        $list = $this->xpath->evaluate($this->getXpathPrefix() . '//dc11:creator');
+        $list = $this->getXpath()->evaluate($this->getXpathPrefix() . '//dc11:creator');
 
         if (!$list->length) {
-            $list = $this->xpath->evaluate($this->getXpathPrefix() . '//dc10:creator');
+            $list = $this->getXpath()->evaluate($this->getXpathPrefix() . '//dc10:creator');
         }
         if (!$list->length) {
-            $list = $this->xpath->evaluate($this->getXpathPrefix() . '//dc11:publisher');
+            $list = $this->getXpath()->evaluate($this->getXpathPrefix() . '//dc11:publisher');
 
             if (!$list->length) {
-                $list = $this->xpath->evaluate($this->getXpathPrefix() . '//dc10:publisher');
+                $list = $this->getXpath()->evaluate($this->getXpathPrefix() . '//dc10:publisher');
             }
         }
 
@@ -93,10 +87,10 @@ class Entry extends Extension\AbstractEntry
             return $this->data['categories'];
         }
 
-        $list = $this->xpath->evaluate($this->getXpathPrefix() . '//dc11:subject');
+        $list = $this->getXpath()->evaluate($this->getXpathPrefix() . '//dc11:subject');
 
         if (!$list->length) {
-            $list = $this->xpath->evaluate($this->getXpathPrefix() . '//dc10:subject');
+            $list = $this->getXpath()->evaluate($this->getXpathPrefix() . '//dc10:subject');
         }
 
         if ($list->length) {
@@ -115,7 +109,6 @@ class Entry extends Extension\AbstractEntry
         $this->data['categories'] = $categoryCollection;
         return $this->data['categories'];
     }
-
 
     /**
      * Get the entry content
@@ -138,11 +131,10 @@ class Entry extends Extension\AbstractEntry
             return $this->data['description'];
         }
 
-        $description = null;
-        $description = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc11:description)');
+        $description = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc11:description)');
 
         if (!$description) {
-            $description = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc10:description)');
+            $description = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc10:description)');
         }
 
         if (!$description) {
@@ -165,11 +157,10 @@ class Entry extends Extension\AbstractEntry
             return $this->data['id'];
         }
 
-        $id = null;
-        $id = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc11:identifier)');
+        $id = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc11:identifier)');
 
         if (!$id) {
-            $id = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc10:identifier)');
+            $id = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc10:identifier)');
         }
 
         $this->data['id'] = $id;
@@ -188,11 +179,10 @@ class Entry extends Extension\AbstractEntry
             return $this->data['title'];
         }
 
-        $title = null;
-        $title = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc11:title)');
+        $title = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc11:title)');
 
         if (!$title) {
-            $title = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc10:title)');
+            $title = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc10:title)');
         }
 
         if (!$title) {
@@ -216,14 +206,14 @@ class Entry extends Extension\AbstractEntry
         }
 
         $d    = null;
-        $date = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc11:date)');
+        $date = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc11:date)');
 
         if (!$date) {
-            $date = $this->xpath->evaluate('string(' . $this->getXpathPrefix() . '/dc10:date)');
+            $date = $this->getXpath()->evaluate('string(' . $this->getXpathPrefix() . '/dc10:date)');
         }
 
         if ($date) {
-            $d = DateTime::createFromFormat(DateTime::ISO8601, $date);
+            $d = new DateTime($date);
         }
 
         $this->data['date'] = $d;
@@ -238,7 +228,7 @@ class Entry extends Extension\AbstractEntry
      */
     protected function registerNamespaces()
     {
-        $this->xpath->registerNamespace('dc10', 'http://purl.org/dc/elements/1.0/');
-        $this->xpath->registerNamespace('dc11', 'http://purl.org/dc/elements/1.1/');
+        $this->getXpath()->registerNamespace('dc10', 'http://purl.org/dc/elements/1.0/');
+        $this->getXpath()->registerNamespace('dc11', 'http://purl.org/dc/elements/1.1/');
     }
 }

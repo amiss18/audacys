@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mvc
  */
 
 namespace Zend\Mvc\Router\Console;
@@ -14,20 +13,16 @@ use Traversable;
 use Zend\Mvc\Router\Exception;
 use Zend\Mvc\Router\SimpleRouteStack as BaseSimpleRouteStack;
 use Zend\Stdlib\ArrayUtils;
-use Zend\Stdlib\RequestInterface as Request;
 
 /**
  * Tree search implementation.
- *
- * @package    Zend_Mvc_Router
- * @subpackage Http
  */
 class SimpleRouteStack extends BaseSimpleRouteStack
 {
     /**
      * init(): defined by SimpleRouteStack.
      *
-     * @see    SimpleRouteStack::init()
+     * @see    BaseSimpleRouteStack::init()
      */
     protected function init()
     {
@@ -44,10 +39,10 @@ class SimpleRouteStack extends BaseSimpleRouteStack
     /**
      * addRoute(): defined by RouteStackInterface interface.
      *
-     * @see    RouteStack::addRoute()
+     * @see    RouteStackInterface::addRoute()
      * @param  string  $name
      * @param  mixed   $route
-     * @param  integer $priority
+     * @param  int $priority
      * @return SimpleRouteStack
      */
     public function addRoute($name, $route, $priority = null)
@@ -62,8 +57,8 @@ class SimpleRouteStack extends BaseSimpleRouteStack
     /**
      * routeFromArray(): defined by SimpleRouteStack.
      *
-     * @see    SimpleRouteStack::routeFromArray()
-     * @param  array|\Traversable $specs
+     * @see    BaseSimpleRouteStack::routeFromArray()
+     * @param  array|Traversable $specs
      * @return RouteInterface
      * @throws Exception\InvalidArgumentException
      * @throws Exception\RuntimeException
@@ -77,7 +72,9 @@ class SimpleRouteStack extends BaseSimpleRouteStack
         }
 
         // default to 'simple' console route
-        if (!isset($specs['type'])) $specs['type'] = 'simple';
+        if (!isset($specs['type'])) {
+            $specs['type'] = 'simple';
+        }
 
         // build route object
         $route = parent::routeFromArray($specs);

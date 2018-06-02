@@ -3,22 +3,17 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_EventManager
  */
 
 namespace Zend\EventManager;
 
-use ArrayObject;
 use Traversable;
 use Zend\Stdlib\CallbackHandler;
 
 /**
  * Interface for messengers
- *
- * @category   Zend
- * @package    Zend_EventManager
  */
 interface EventManagerInterface extends SharedEventManagerAwareInterface
 {
@@ -30,10 +25,9 @@ interface EventManagerInterface extends SharedEventManagerAwareInterface
      * - Passing event name and Event object only
      * - Passing event name, target, and Event object
      * - Passing event name, target, and array|ArrayAccess of arguments
+     * - Passing event name, target, array|ArrayAccess of arguments, and callback
      *
-     * Can emulate triggerUntil() if the last argument provided is a callback.
-     *
-     * @param  string $event
+     * @param  string|EventInterface $event
      * @param  object|string $target
      * @param  array|object $argv
      * @param  null|callable $callback
@@ -42,7 +36,7 @@ interface EventManagerInterface extends SharedEventManagerAwareInterface
     public function trigger($event, $target = null, $argv = array(), $callback = null);
 
     /**
-     * Trigger an event until the given callback returns a boolean false
+     * Trigger an event until the given callback returns a boolean true
      *
      * Should allow handling the following scenarios:
      * - Passing Event object and callback only
@@ -50,11 +44,12 @@ interface EventManagerInterface extends SharedEventManagerAwareInterface
      * - Passing event name, target, Event object, and callback
      * - Passing event name, target, array|ArrayAccess of arguments, and callback
      *
-     * @param  string $event
+     * @param  string|EventInterface $event
      * @param  object|string $target
      * @param  array|object $argv
      * @param  callable $callback
      * @return ResponseCollection
+     * @deprecated Please use trigger()
      */
     public function triggerUntil($event, $target, $argv = null, $callback = null);
 

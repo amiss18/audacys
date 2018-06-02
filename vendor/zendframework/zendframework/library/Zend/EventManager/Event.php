@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_EventManager
  */
 
 namespace Zend\EventManager;
@@ -17,9 +16,6 @@ use ArrayAccess;
  *
  * Encapsulates the target context and parameters passed, and provides some
  * behavior for interacting with the event manager.
- *
- * @category   Zend
- * @package    Zend_EventManager
  */
 class Event implements EventInterface
 {
@@ -101,9 +97,9 @@ class Event implements EventInterface
     public function setParams($params)
     {
         if (!is_array($params) && !is_object($params)) {
-            throw new Exception\InvalidArgumentException(sprintf(
-                'Event parameters must be an array or object; received "%s"', gettype($params)
-            ));
+            throw new Exception\InvalidArgumentException(
+                sprintf('Event parameters must be an array or object; received "%s"', gettype($params))
+            );
         }
 
         $this->params = $params;

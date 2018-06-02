@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Log
  */
 
 namespace Zend\Log\Formatter;
@@ -17,11 +16,6 @@ use Traversable;
 use Zend\Escaper\Escaper;
 use Zend\Stdlib\ArrayUtils;
 
-/**
- * @category   Zend
- * @package    Zend_Log
- * @subpackage Formatter
- */
 class Xml implements FormatterInterface
 {
     /**
@@ -166,10 +160,11 @@ class Xml implements FormatterInterface
             $event['timestamp'] = $event['timestamp']->format($this->getDateTimeFormat());
         }
 
-        if ($this->elementMap === null) {
-            $dataToInsert = $event;
-        } else {
+        $dataToInsert = $event;
+
+        if (null !== $this->elementMap) {
             $dataToInsert = array();
+
             foreach ($this->elementMap as $elementName => $fieldKey) {
                 $dataToInsert[$elementName] = $event[$fieldKey];
             }
@@ -183,21 +178,78 @@ class Xml implements FormatterInterface
         foreach ($dataToInsert as $key => $value) {
             if (empty($value)
                 || is_scalar($value)
-                || (is_object($value) && method_exists($value,'__toString'))
+                || ((is_array($value) || $value instanceof Traversable) && $key == "extra")
+                || (is_object($value) && method_exists($value, '__toString'))
             ) {
                 if ($key == "message") {
                     $value = $escaper->escapeHtml($value);
-                } elseif ($key == "extra" && empty($value)) {
+                }
+
+                if ($key == "extra" && empty($value)) {
                     continue;
                 }
-                $elt->appendChild(new DOMElement($key, (string)$value));
+
+                if ($key == "extra" && (is_array($value) || $value instanceof Traversable)) {
+                    $elt->appendChild($this->buildElementTree($dom, $dom->createElement('extra'), $value));
+
+                    continue;
+                }
+
+                $elt->appendChild(new DOMElement($key, (string) $value));
             }
         }
 
-        $xml = $dom->saveXML();
-        $xml = preg_replace('/<\?xml version="1.0"( encoding="[^\"]*")?\?>\n/u', '', $xml);
+        return preg_replace('/<\?xml version="1.0"( encoding="[^\"]*")?\?>\n/u', '', $dom->saveXML()) . PHP_EOL;
+    }
 
-        return $xml . PHP_EOL;
+    /**
+     * Recursion function to create an xml tree structure out of array structure
+     * @param DomDocument $doc - DomDocument where the current nodes will be generated
+     * @param DomElement $rootElement - root element the tree will be attached to
+     * @param $mixedData array|Traversable - mixedData
+     * @return DomElement $domElement - DOM Element with appended child nodes
+     */
+    protected function buildElementTree(DOMDocument $doc, DOMElement $rootElement, $mixedData)
+    {
+        if (! (is_array($mixedData) || $mixedData instanceof Traversable)) {
+            return $rootElement;
+        }
+
+        foreach ($mixedData as $key => $value) {
+            // key is numeric and switch is not possible, numeric values are not valid node names
+            if ((empty($value) || is_numeric($value)) && is_numeric($key)) {
+                continue;
+            }
+
+            if ($value instanceof Traversable || is_array($value)) {
+                // current value is an array, start recursion
+                $rootElement->appendChild($this->buildElementTree($doc, $doc->createElement($key), $value));
+
+                continue;
+            }
+
+            if (is_object($value) && ! method_exists($value, '__toString')) {
+                // object does not support __toString() method, manually convert the value
+                $value = $this->getEscaper()->escapeHtml(
+                    '"Object" of type ' . get_class($value) . " does not support __toString() method"
+                );
+            }
+
+            if (is_numeric($key)) {
+                // xml does not allow numeric values, try to switch the value and the key
+                $key   = (string) $value;
+                $value = null;
+            }
+
+            try {
+                $rootElement->appendChild(new DOMElement($key, empty($value) ? null : (string) $value));
+            } catch (\DOMException $e) {
+                // the input name is not valid, go one.
+                continue;
+            }
+        }
+
+        return $rootElement;
     }
 
     /**

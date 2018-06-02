@@ -3,20 +3,19 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Ldap
  */
 
 namespace Zend\Ldap;
 
+use Countable;
+use Iterator;
+
 /**
  * Zend\Ldap\Collection wraps a list of LDAP entries.
- *
- * @category   Zend
- * @package    Zend_Ldap
  */
-class Collection implements \Iterator, \Countable
+class Collection implements Iterator, Countable
 {
     /**
      * Iterator
@@ -28,7 +27,7 @@ class Collection implements \Iterator, \Countable
     /**
      * Current item number
      *
-     * @var integer
+     * @var int
      */
     protected $current = -1;
 
@@ -57,7 +56,7 @@ class Collection implements \Iterator, \Countable
     /**
      * Closes the current result set
      *
-     * @return boolean
+     * @return bool
      */
     public function close()
     {
@@ -89,7 +88,7 @@ class Collection implements \Iterator, \Countable
             $this->rewind();
             return $this->current();
         }
-        return null;
+        return;
     }
 
     /**
@@ -129,13 +128,13 @@ class Collection implements \Iterator, \Countable
             if (!array_key_exists($this->current, $this->cache)) {
                 $current = $this->iterator->current();
                 if ($current === null) {
-                    return null;
+                    return;
                 }
                 $this->cache[$this->current] = $this->createEntry($current);
             }
             return $this->cache[$this->current];
         }
-        return null;
+        return;
     }
 
     /**
@@ -162,7 +161,7 @@ class Collection implements \Iterator, \Countable
             }
             return $this->iterator->key();
         }
-        return null;
+        return;
     }
 
     /**
@@ -179,7 +178,7 @@ class Collection implements \Iterator, \Countable
             }
             return $this->current;
         }
-        return null;
+        return;
     }
 
     /**
@@ -211,7 +210,7 @@ class Collection implements \Iterator, \Countable
      * after calls to rewind() or next()
      * Implements Iterator
      *
-     * @return boolean
+     * @return bool
      */
     public function valid()
     {

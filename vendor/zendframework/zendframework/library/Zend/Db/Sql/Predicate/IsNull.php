@@ -3,21 +3,16 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Sql\Predicate;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Sql
- */
-class IsNull implements PredicateInterface
-{
+use Zend\Db\Sql\AbstractExpression;
 
+class IsNull extends AbstractExpression implements PredicateInterface
+{
     /**
      * @var string
      */
@@ -91,11 +86,11 @@ class IsNull implements PredicateInterface
      */
     public function getExpressionData()
     {
+        $identifier = $this->normalizeArgument($this->identifier, self::TYPE_IDENTIFIER);
         return array(array(
             $this->getSpecification(),
-            array($this->identifier),
-            array(self::TYPE_IDENTIFIER),
+            array($identifier[0]),
+            array($identifier[1]),
         ));
     }
-
 }

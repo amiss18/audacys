@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Http
  */
 
 namespace Zend\Http\Header;
@@ -26,9 +25,6 @@ use DateTimeZone;
  * Note for 'Location' header:
  * While RFC 1945 requires an absolute URI, most of the browsers also support relative URI
  * This class allows relative URIs, and let user retrieve URI instance if strict validation needed
- *
- * @category   Zend
- * @package    Zend_Http
  */
 abstract class AbstractDate implements HeaderInterface
 {
@@ -78,7 +74,7 @@ abstract class AbstractDate implements HeaderInterface
     {
         $dateHeader = new static();
 
-        list($name, $date) = explode(': ', $headerLine, 2);
+        list($name, $date) = GenericHeader::splitHeaderLine($headerLine);
 
         // check to ensure proper header type for this factory
         if (strtolower($name) !== strtolower($dateHeader->getFieldName())) {
@@ -88,6 +84,44 @@ abstract class AbstractDate implements HeaderInterface
         }
 
         $dateHeader->setDate($date);
+
+        return $dateHeader;
+    }
+
+    /**
+     * Create date-based header from strtotime()-compatible string
+     *
+     * @param int|string $time
+     *
+     * @return self
+     *
+     * @throws Exception\InvalidArgumentException
+     */
+    public static function fromTimeString($time)
+    {
+        return static::fromTimestamp(strtotime($time));
+    }
+
+    /**
+     * Create date-based header from Unix timestamp
+     *
+     * @param int $time
+     *
+     * @return self
+     *
+     * @throws Exception\InvalidArgumentException
+     */
+    public static function fromTimestamp($time)
+    {
+        $dateHeader = new static();
+
+        if (! $time || ! is_numeric($time)) {
+            throw new Exception\InvalidArgumentException(
+                'Invalid time for "' . $dateHeader->getFieldName() . '" header string'
+            );
+        }
+
+        $dateHeader->setDate(new DateTime('@' . $time));
 
         return $dateHeader;
     }

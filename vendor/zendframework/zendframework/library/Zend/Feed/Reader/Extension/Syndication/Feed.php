@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Reader\Extension\Syndication;
@@ -14,11 +13,7 @@ use DateTime;
 use Zend\Feed\Reader;
 use Zend\Feed\Reader\Extension;
 
-/**
- * @category   Zend
- * @package    Zend_Feed_Reader
- */
-class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
+class Feed extends Extension\AbstractFeed
 {
     /**
      * Get update period
@@ -29,7 +24,7 @@ class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
     public function getUpdatePeriod()
     {
         $name = 'updatePeriod';
-        $period = $this->_getData($name);
+        $period = $this->getData($name);
 
         if ($period === null) {
             $this->data[$name] = 'daily';
@@ -51,12 +46,13 @@ class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
 
     /**
      * Get update frequency
+     *
      * @return int
      */
     public function getUpdateFrequency()
     {
         $name = 'updateFrequency';
-        $freq = $this->_getData($name, 'number');
+        $freq = $this->getData($name, 'number');
 
         if (!$freq || $freq < 1) {
             $this->data[$name] = 1;
@@ -68,12 +64,13 @@ class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
 
     /**
      * Get update frequency as ticks
+     *
      * @return int
      */
     public function getUpdateFrequencyAsTicks()
     {
         $name = 'updateFrequency';
-        $freq = $this->_getData($name, 'number');
+        $freq = $this->getData($name, 'number');
 
         if (!$freq || $freq < 1) {
             $this->data[$name] = 1;
@@ -84,13 +81,15 @@ class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
         $ticks = 1;
 
         switch ($period) {
-            //intentional fall through
             case 'yearly':
                 $ticks *= 52; //TODO: fix generalisation, how?
+                // no break
             case 'weekly':
                 $ticks *= 7;
+                // no break
             case 'daily':
                 $ticks *= 24;
+                // no break
             case 'hourly':
                 $ticks *= 3600;
                 break;
@@ -108,7 +107,7 @@ class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
      */
     public function getUpdateBase()
     {
-        $updateBase = $this->_getData('updateBase');
+        $updateBase = $this->getData('updateBase');
         $date = null;
         if ($updateBase) {
             $date = DateTime::createFromFormat(DateTime::W3C, $updateBase);
@@ -123,7 +122,7 @@ class Feed extends \Zend\Feed\Reader\Extension\AbstractFeed
      * @param string $type
      * @return mixed|null
      */
-    private function _getData($name, $type = 'string')
+    private function getData($name, $type = 'string')
     {
         if (array_key_exists($name, $this->data)) {
             return $this->data[$name];

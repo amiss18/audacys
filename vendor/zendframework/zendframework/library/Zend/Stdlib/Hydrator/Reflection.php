@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Stdlib
  */
 
 namespace Zend\Stdlib\Hydrator;
@@ -17,7 +16,7 @@ class Reflection extends AbstractHydrator
 {
     /**
      * Simple in-memory array cache of ReflectionProperties used.
-     * @var array
+     * @var \ReflectionProperty[]
      */
     protected static $reflProperties = array();
 
@@ -31,10 +30,13 @@ class Reflection extends AbstractHydrator
     {
         $result = array();
         foreach (self::getReflProperties($object) as $property) {
-            $propertyName = $property->getName();
+            $propertyName = $this->extractName($property->getName(), $object);
+            if (!$this->filterComposite->filter($propertyName)) {
+                continue;
+            }
 
             $value = $property->getValue($object);
-            $result[$propertyName] = $this->extractValue($propertyName, $value);
+            $result[$propertyName] = $this->extractValue($propertyName, $value, $object);
         }
 
         return $result;
@@ -51,8 +53,9 @@ class Reflection extends AbstractHydrator
     {
         $reflProperties = self::getReflProperties($object);
         foreach ($data as $key => $value) {
-            if (isset($reflProperties[$key])) {
-                $reflProperties[$key]->setValue($object, $this->hydrateValue($key, $value));
+            $name = $this->hydrateName($key, $data);
+            if (isset($reflProperties[$name])) {
+                $reflProperties[$name]->setValue($object, $this->hydrateValue($name, $value, $data));
             }
         }
         return $object;
@@ -62,10 +65,9 @@ class Reflection extends AbstractHydrator
      * Get a reflection properties from in-memory cache and lazy-load if
      * class has not been loaded.
      *
-     * @static
-     * @param string|object $input
+     * @param  string|object $input
      * @throws Exception\InvalidArgumentException
-     * @return array
+     * @return \ReflectionProperty[]
      */
     protected static function getReflProperties($input)
     {
@@ -75,16 +77,19 @@ class Reflection extends AbstractHydrator
             throw new Exception\InvalidArgumentException('Input must be a string or an object.');
         }
 
-        if (!isset(self::$reflProperties[$input])) {
-            $reflClass      = new ReflectionClass($input);
-            $reflProperties = $reflClass->getProperties();
-
-            foreach ($reflProperties as $property) {
-                $property->setAccessible(true);
-                self::$reflProperties[$input][$property->getName()] = $property;
-            }
+        if (isset(static::$reflProperties[$input])) {
+            return static::$reflProperties[$input];
         }
 
-        return self::$reflProperties[$input];
+        static::$reflProperties[$input] = array();
+        $reflClass                      = new ReflectionClass($input);
+        $reflProperties                 = $reflClass->getProperties();
+
+        foreach ($reflProperties as $property) {
+            $property->setAccessible(true);
+            static::$reflProperties[$input][$property->getName()] = $property;
+        }
+
+        return static::$reflProperties[$input];
     }
 }

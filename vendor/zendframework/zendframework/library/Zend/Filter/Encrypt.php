@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Filter
  */
 
 namespace Zend\Filter;
@@ -15,14 +14,13 @@ use Zend\Stdlib\ArrayUtils;
 
 /**
  * Encrypts a given string
- *
- * @category   Zend
- * @package    Zend_Filter
  */
 class Encrypt extends AbstractFilter
 {
     /**
      * Encryption adapter
+     *
+     * @param Encrypt\EncryptionAlgorithmInterface
      */
     protected $adapter;
 
@@ -41,6 +39,43 @@ class Encrypt extends AbstractFilter
     }
 
     /**
+     * Returns the adapter instance
+     *
+     * @throws Exception\RuntimeException
+     * @throws Exception\InvalidArgumentException
+     * @return Encrypt\EncryptionAlgorithmInterface
+     */
+    public function getAdapterInstance()
+    {
+        if ($this->adapter instanceof Encrypt\EncryptionAlgorithmInterface) {
+            return $this->adapter;
+        }
+
+        $adapter = $this->adapter;
+        $options = $this->getOptions();
+        if (! class_exists($adapter)) {
+            $adapter = __CLASS__ . '\\' . ucfirst($adapter);
+            if (! class_exists($adapter)) {
+                throw new Exception\RuntimeException(sprintf(
+                    '%s unable to load adapter; class "%s" not found',
+                    __METHOD__,
+                    $this->adapter
+                ));
+            }
+        }
+
+        $this->adapter = new $adapter($options);
+        if (! $this->adapter instanceof Encrypt\EncryptionAlgorithmInterface) {
+            throw new Exception\InvalidArgumentException(sprintf(
+                'Encryption adapter "%s" does not implement %s\\EncryptionAlgorithmInterface',
+                $adapter,
+                __CLASS__
+            ));
+        }
+        return $this->adapter;
+    }
+
+    /**
      * Returns the name of the set adapter
      *
      * @return string
@@ -54,7 +89,7 @@ class Encrypt extends AbstractFilter
      * Sets new encryption options
      *
      * @param  string|array $options (Optional) Encryption options
-     * @return Encrypt
+     * @return self
      * @throws Exception\DomainException
      * @throws Exception\InvalidArgumentException
      */
@@ -77,17 +112,20 @@ class Encrypt extends AbstractFilter
             $adapter = 'Zend\Filter\Encrypt\\' . ucfirst($adapter);
         } elseif (!class_exists($adapter)) {
             throw new Exception\DomainException(
-                sprintf('%s expects a valid registry class name; received "%s", which did not resolve',
+                sprintf(
+                    '%s expects a valid registry class name; received "%s", which did not resolve',
                     __METHOD__,
                     $adapter
-            ));
+                )
+            );
         }
 
         $this->adapter = new $adapter($options);
         if (!$this->adapter instanceof Encrypt\EncryptionAlgorithmInterface) {
             throw new Exception\InvalidArgumentException(
                 "Encoding adapter '" . $adapter
-                . "' does not implement Zend\\Filter\\Encrypt\\EncryptionAlgorithmInterface");
+                . "' does not implement Zend\\Filter\\Encrypt\\EncryptionAlgorithmInterface"
+            );
         }
 
         return $this;
@@ -104,7 +142,7 @@ class Encrypt extends AbstractFilter
     public function __call($method, $options)
     {
         $part = substr($method, 0, 3);
-        if ((($part != 'get') and ($part != 'set')) or !method_exists($this->adapter, $method)) {
+        if ((($part != 'get') && ($part != 'set')) || !method_exists($this->adapter, $method)) {
             throw new Exception\BadMethodCallException("Unknown method '{$method}'");
         }
 
@@ -121,6 +159,10 @@ class Encrypt extends AbstractFilter
      */
     public function filter($value)
     {
+        if (!is_string($value) && !is_numeric($value)) {
+            return $value;
+        }
+
         return $this->adapter->encrypt($value);
     }
 }

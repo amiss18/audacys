@@ -3,25 +3,19 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Writer;
 
 use Countable;
-use DateTime;
 use Iterator;
-use Zend\Feed\Writer\Renderer;
 
 /**
-* @category Zend
-* @package Zend_Feed_Writer
 */
 class Feed extends AbstractFeed implements Iterator, Countable
 {
-
     /**
      * Contains all entry objects
      *
@@ -87,10 +81,12 @@ class Feed extends AbstractFeed implements Iterator, Countable
      * the feed data container's internal group of entries.
      *
      * @param Entry $entry
+     * @return Feed
      */
     public function addEntry(Entry $entry)
     {
         $this->entries[] = $entry;
+        return $this;
     }
 
     /**
@@ -99,6 +95,7 @@ class Feed extends AbstractFeed implements Iterator, Countable
      *
      * @param int $index
      * @throws Exception\InvalidArgumentException
+     * @return Feed
      */
     public function removeEntry($index)
     {
@@ -106,6 +103,8 @@ class Feed extends AbstractFeed implements Iterator, Countable
             throw new Exception\InvalidArgumentException('Undefined index: ' . $index . '. Entry does not exist.');
         }
         unset($this->entries[$index]);
+
+        return $this;
     }
 
     /**
@@ -130,7 +129,7 @@ class Feed extends AbstractFeed implements Iterator, Countable
      *
      * Using this method will alter the original indexation.
      *
-     * @return void
+     * @return Feed
      */
     public function orderByDate()
     {
@@ -147,8 +146,10 @@ class Feed extends AbstractFeed implements Iterator, Countable
             }
             $entries[$timestamp] = $entry;
         }
-        krsort($entries, \SORT_NUMERIC);
+        krsort($entries, SORT_NUMERIC);
         $this->entries = array_values($entries);
+
+        return $this;
     }
 
     /**
@@ -205,7 +206,7 @@ class Feed extends AbstractFeed implements Iterator, Countable
     /**
      * Check to see if the iterator is still valid
      *
-     * @return boolean
+     * @return bool
      */
     public function valid()
     {
@@ -235,5 +236,4 @@ class Feed extends AbstractFeed implements Iterator, Countable
         }
         return $renderer->render()->saveXml();
     }
-
 }

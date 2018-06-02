@@ -3,27 +3,23 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Navigation
  */
 
 namespace Zend\Navigation\Service;
 
 use Zend\Config;
+use Zend\Http\Request;
 use Zend\Mvc\Router\RouteMatch;
 use Zend\Mvc\Router\RouteStackInterface as Router;
 use Zend\Navigation\Exception;
 use Zend\Navigation\Navigation;
-use Zend\Navigation\Page\Mvc as MvcPage;
 use Zend\ServiceManager\FactoryInterface;
 use Zend\ServiceManager\ServiceLocatorInterface;
 
 /**
  * Abstract navigation factory
- *
- * @category  Zend
- * @package   Zend_Navigation
  */
 abstract class AbstractNavigationFactory implements FactoryInterface
 {
@@ -56,7 +52,7 @@ abstract class AbstractNavigationFactory implements FactoryInterface
     protected function getPages(ServiceLocatorInterface $serviceLocator)
     {
         if (null === $this->pages) {
-            $configuration = $serviceLocator->get('Configuration');
+            $configuration = $serviceLocator->get('Config');
 
             if (!isset($configuration['navigation'])) {
                 throw new Exception\InvalidArgumentException('Could not find navigation configuration key');
@@ -68,14 +64,31 @@ abstract class AbstractNavigationFactory implements FactoryInterface
                 ));
             }
 
-            $application = $serviceLocator->get('Application');
-            $routeMatch  = $application->getMvcEvent()->getRouteMatch();
-            $router      = $application->getMvcEvent()->getRouter();
             $pages       = $this->getPagesFromConfig($configuration['navigation'][$this->getName()]);
-
-            $this->pages = $this->injectComponents($pages, $routeMatch, $router);
+            $this->pages = $this->preparePages($serviceLocator, $pages);
         }
         return $this->pages;
+    }
+
+    /**
+     * @param ServiceLocatorInterface $serviceLocator
+     * @param array|\Zend\Config\Config $pages
+     * @return null|array
+     * @throws \Zend\Navigation\Exception\InvalidArgumentException
+     */
+    protected function preparePages(ServiceLocatorInterface $serviceLocator, $pages)
+    {
+        $application = $serviceLocator->get('Application');
+        $routeMatch  = $application->getMvcEvent()->getRouteMatch();
+        $router      = $application->getMvcEvent()->getRouter();
+        $request     = $application->getMvcEvent()->getRequest();
+
+        // HTTP request is the only one that may be injected
+        if (!$request instanceof Request) {
+            $request = null;
+        }
+
+        return $this->injectComponents($pages, $routeMatch, $router, $request);
     }
 
     /**
@@ -97,8 +110,8 @@ abstract class AbstractNavigationFactory implements FactoryInterface
         } elseif ($config instanceof Config\Config) {
             $config = $config->toArray();
         } elseif (!is_array($config)) {
-            throw new Exception\InvalidArgumentException('
-                Invalid input, expected array, filename, or Zend\Config object'
+            throw new Exception\InvalidArgumentException(
+                'Invalid input, expected array, filename, or Zend\Config object'
             );
         }
 
@@ -109,11 +122,17 @@ abstract class AbstractNavigationFactory implements FactoryInterface
      * @param array $pages
      * @param RouteMatch $routeMatch
      * @param Router $router
-     * @return mixed
+     * @param null|Request $request
+     * @return array
      */
-    protected function injectComponents(array $pages, RouteMatch $routeMatch = null, Router $router = null)
-    {
+    protected function injectComponents(
+        array $pages,
+        RouteMatch $routeMatch = null,
+        Router $router = null,
+        $request = null
+    ) {
         foreach ($pages as &$page) {
+            $hasUri = isset($page['uri']);
             $hasMvc = isset($page['action']) || isset($page['controller']) || isset($page['route']);
             if ($hasMvc) {
                 if (!isset($page['routeMatch']) && $routeMatch) {
@@ -122,10 +141,14 @@ abstract class AbstractNavigationFactory implements FactoryInterface
                 if (!isset($page['router'])) {
                     $page['router'] = $router;
                 }
+            } elseif ($hasUri) {
+                if (!isset($page['request'])) {
+                    $page['request'] = $request;
+                }
             }
 
             if (isset($page['pages'])) {
-                $page['pages'] = $this->injectComponents($page['pages'], $routeMatch, $router);
+                $page['pages'] = $this->injectComponents($page['pages'], $routeMatch, $router, $request);
             }
         }
         return $pages;

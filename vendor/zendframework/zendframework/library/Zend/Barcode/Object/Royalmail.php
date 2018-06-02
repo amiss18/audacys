@@ -3,22 +3,17 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Barcode
  */
 
 namespace Zend\Barcode\Object;
 
 /**
  * Class for generate Royal maim barcode
- *
- * @category   Zend
- * @package    Zend_Barcode
  */
 class Royalmail extends AbstractObject
 {
-
     /**
      * Coding map
      * - 0 = Tracker, Ascender and Descender
@@ -69,7 +64,7 @@ class Royalmail extends AbstractObject
 
     /**
      * Width of the barcode (in pixels)
-     * @return integer
+     * @return int
      */
     protected function calculateBarcodeWidth()
     {
@@ -85,7 +80,8 @@ class Royalmail extends AbstractObject
      * @return void
      */
     protected function checkSpecificParams()
-    {}
+    {
+    }
 
     /**
      * Prepare array to draw barcode
@@ -96,21 +92,21 @@ class Royalmail extends AbstractObject
         $barcodeTable = array();
 
         // Start character (1)
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , 5/8);
-        $barcodeTable[] = array(0 , $this->barThinWidth , 0 , 1);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, 5/8);
+        $barcodeTable[] = array(0, $this->barThinWidth, 0, 1);
 
         // Text to encode
         $textTable = str_split($this->getText());
         foreach ($textTable as $char) {
             $bars = str_split($this->codingMap[$char]);
             foreach ($bars as $b) {
-                $barcodeTable[] = array(1 , $this->barThinWidth , ($b > 1 ? 3/8 : 0) , ($b % 2 ? 5/8 : 1));
-                $barcodeTable[] = array(0 , $this->barThinWidth , 0 , 1);
+                $barcodeTable[] = array(1, $this->barThinWidth, ($b > 1 ? 3/8 : 0), ($b % 2 ? 5/8 : 1));
+                $barcodeTable[] = array(0, $this->barThinWidth, 0, 1);
             }
         }
 
         // Stop character (1)
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , 1);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, 1);
         return $barcodeTable;
     }
 

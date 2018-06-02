@@ -3,27 +3,23 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Serializer
  */
 
 namespace Zend\Serializer\Adapter;
 
 use stdClass;
 use Traversable;
-use Zend\Stdlib\ArrayUtils;
-use Zend\Serializer\Exception;
 use Zend\Math\BigInteger;
+use Zend\Serializer\Exception;
+use Zend\Stdlib\ArrayUtils;
 
 /**
  * @link       http://www.python.org
  * @see        Phython3.1/Lib/pickle.py
  * @see        Phython3.1/Modules/_pickle.c
  * @link       http://pickle-js.googlecode.com
- * @category   Zend
- * @package    Zend_Serializer
- * @subpackage Adapter
  */
 class PythonPickle extends AbstractAdapter
 {
@@ -138,13 +134,13 @@ class PythonPickle extends AbstractAdapter
     /**
      * Constructor.
      *
-     * @param  array|\Traversable|PythonPickleOptions $options Optional
+     * @param  array|Traversable|PythonPickleOptions $options Optional
      */
     public function __construct($options = null)
     {
         // init
-        if (self::$isLittleEndian === null) {
-            self::$isLittleEndian = (pack('l', 1) === "\x01\x00\x00\x00");
+        if (static::$isLittleEndian === null) {
+            static::$isLittleEndian = (pack('l', 1) === "\x01\x00\x00\x00");
         }
 
         $this->marker = new stdClass();
@@ -155,7 +151,7 @@ class PythonPickle extends AbstractAdapter
     /**
      * Set options
      *
-     * @param  array|\Traversable|PythonPickleOptions $options
+     * @param  array|Traversable|PythonPickleOptions $options
      * @return PythonPickle
      */
     public function setOptions($options)
@@ -238,7 +234,7 @@ class PythonPickle extends AbstractAdapter
             throw new Exception\RuntimeException(sprintf(
                 'PHP-Type "%s" can not be serialized by %s',
                 gettype($value),
-                get_called_class()
+                get_class($this)
             ));
         }
     }
@@ -268,7 +264,7 @@ class PythonPickle extends AbstractAdapter
         } else {
             // LONG_BINGET + pack("<i", i)
             $bin = pack('l', $id);
-            if (self::$isLittleEndian === false) {
+            if (static::$isLittleEndian === false) {
                 $bin = strrev($bin);
             }
             $this->pickle .= self::OP_LONG_BINGET . $bin;
@@ -290,7 +286,7 @@ class PythonPickle extends AbstractAdapter
         } else {
             // LONG_BINPUT + pack("<i", i)
             $bin = pack('l', $id);
-            if (self::$isLittleEndian === false) {
+            if (static::$isLittleEndian === false) {
                 $bin = strrev($bin);
             }
             $this->pickle .= self::OP_LONG_BINPUT . $bin;
@@ -350,7 +346,7 @@ class PythonPickle extends AbstractAdapter
             // fits in a 4-byte signed int.
             // self.write(BININT + pack("<i", obj))
             $bin = pack('l', $value);
-            if (self::$isLittleEndian === false) {
+            if (static::$isLittleEndian === false) {
                 $bin = strrev($bin);
             }
             $this->pickle .= self::OP_BININT . $bin;
@@ -370,7 +366,7 @@ class PythonPickle extends AbstractAdapter
         } else {
             // self.write(BINFLOAT + pack('>d', obj))
             $bin = pack('d', $value);
-            if (self::$isLittleEndian === true) {
+            if (static::$isLittleEndian === true) {
                 $bin = strrev($bin);
             }
             $this->pickle .= self::OP_BINFLOAT . $bin;
@@ -399,7 +395,7 @@ class PythonPickle extends AbstractAdapter
             } else {
                 // self.write(BINSTRING + pack("<i", n) + obj)
                 $binLen = pack('l', $n);
-                if (self::$isLittleEndian === false) {
+                if (static::$isLittleEndian === false) {
                     $binLen = strrev($binLen);
                 }
                 $this->pickle .= self::OP_BINSTRING . $binLen . $value;
@@ -425,7 +421,9 @@ class PythonPickle extends AbstractAdapter
         $this->memorize($value);
 
         foreach ($value as $k => $v) {
-            $this->pickle .= $this->write($k) . $this->write($v) . self::OP_SETITEM;
+            $this->write($k);
+            $this->write($v);
+            $this->pickle .= self::OP_SETITEM;
         }
     }
 
@@ -445,12 +443,13 @@ class PythonPickle extends AbstractAdapter
         $this->memorize($value);
 
         foreach ($value as $v) {
-            $this->pickle .= $this->write($v) . self::OP_APPEND;
+            $this->write($v);
+            $this->pickle .= self::OP_APPEND;
         }
     }
 
     /**
-     * Write an object as an dictionary
+     * Write an object as a dictionary
      *
      * @param  object $value
      */
@@ -467,7 +466,7 @@ class PythonPickle extends AbstractAdapter
             $this->writeArrayDict($value->toArray());
 
         // If the object is an iterator simply iterate it
-        // and convert it to an dictionary
+        // and convert it to a dictionary
         } elseif ($value instanceof Traversable) {
             $this->writeArrayDict($value);
 
@@ -518,7 +517,7 @@ class PythonPickle extends AbstractAdapter
      */
     protected function quoteString($str)
     {
-        $quoteArr = self::$quoteString;
+        $quoteArr = static::$quoteString;
 
         if (($cntSingleQuote = substr_count($str, "'"))
             && ($cntDoubleQuote = substr_count($str, '"'))
@@ -750,7 +749,7 @@ class PythonPickle extends AbstractAdapter
     protected function loadLongBinPut()
     {
         $bin = $this->read(4);
-        if (self::$isLittleEndian === false) {
+        if (static::$isLittleEndian === false) {
             $bin = strrev($bin);
         }
         list(, $id) = unpack('l', $bin);
@@ -769,7 +768,7 @@ class PythonPickle extends AbstractAdapter
      */
     protected function loadGet()
     {
-        $id = (int)$this->readline();
+        $id = (int) $this->readline();
 
         if (!array_key_exists($id, $this->memo)) {
             throw new Exception\RuntimeException('Get id "' . $id . '" not found in memo');
@@ -800,7 +799,7 @@ class PythonPickle extends AbstractAdapter
     protected function loadLongBinGet()
     {
         $bin = $this->read(4);
-        if (self::$isLittleEndian === false) {
+        if (static::$isLittleEndian === false) {
             $bin = strrev($bin);
         }
         list(, $id) = unpack('l', $bin);
@@ -856,7 +855,7 @@ class PythonPickle extends AbstractAdapter
     protected function loadBinInt()
     {
         $bin = $this->read(4);
-        if (self::$isLittleEndian === false) {
+        if (static::$isLittleEndian === false) {
             $bin = strrev($bin);
         }
         list(, $int)   = unpack('l', $bin);
@@ -911,7 +910,7 @@ class PythonPickle extends AbstractAdapter
     protected function loadLong4()
     {
         $nBin = $this->read(4);
-        if (self::$isLittleEndian === false) {
+        if (static::$isLittleEndian === false) {
             $nBin = strrev($$nBin);
         }
         list(, $n) = unpack('l', $nBin);
@@ -937,7 +936,7 @@ class PythonPickle extends AbstractAdapter
     protected function loadBinFloat()
     {
         $bin = $this->read(8);
-        if (self::$isLittleEndian === true) {
+        if (static::$isLittleEndian === true) {
             $bin = strrev($bin);
         }
         list(, $float) = unpack('d', $bin);
@@ -950,7 +949,7 @@ class PythonPickle extends AbstractAdapter
      */
     protected function loadString()
     {
-        $this->stack[] = $this->unquoteString((string)$this->readline());
+        $this->stack[] = $this->unquoteString((string) $this->readline());
     }
 
     /**
@@ -960,11 +959,11 @@ class PythonPickle extends AbstractAdapter
     protected function loadBinString()
     {
         $bin = $this->read(4);
-        if (!self::$isLittleEndian) {
+        if (!static::$isLittleEndian) {
             $bin = strrev($bin);
         }
         list(, $len)   = unpack('l', $bin);
-        $this->stack[] = (string)$this->read($len);
+        $this->stack[] = (string) $this->read($len);
     }
 
     /**
@@ -974,7 +973,7 @@ class PythonPickle extends AbstractAdapter
     protected function loadShortBinString()
     {
         $len           = ord($this->read(1));
-        $this->stack[] = (string)$this->read($len);
+        $this->stack[] = (string) $this->read($len);
     }
 
     /**
@@ -984,7 +983,7 @@ class PythonPickle extends AbstractAdapter
     {
         // read byte length
         $nBin = $this->read(4);
-        if (self::$isLittleEndian === false) {
+        if (static::$isLittleEndian === false) {
             $nBin = strrev($$nBin);
         }
         list(, $n)     = unpack('l', $nBin);
@@ -1036,25 +1035,22 @@ class PythonPickle extends AbstractAdapter
 
         if ($uniCode < 0x80) { // 1Byte
             $utf8Char = chr($uniCode);
-
         } elseif ($uniCode < 0x800) { // 2Byte
             $utf8Char = chr(0xC0 | $uniCode >> 6)
                       . chr(0x80 | $uniCode & 0x3F);
-
         } elseif ($uniCode < 0x10000) { // 3Byte
             $utf8Char = chr(0xE0 | $uniCode >> 12)
                       . chr(0x80 | $uniCode >> 6 & 0x3F)
                       . chr(0x80 | $uniCode & 0x3F);
-
         } elseif ($uniCode < 0x110000) { // 4Byte
             $utf8Char  = chr(0xF0 | $uniCode >> 18)
                        . chr(0x80 | $uniCode >> 12 & 0x3F)
                        . chr(0x80 | $uniCode >> 6 & 0x3F)
                        . chr(0x80 | $uniCode & 0x3F);
         } else {
-            throw new Exception\RuntimeException(sprintf(
-                'Unsupported unicode character found "%s"', dechex($uniCode)
-            ));
+            throw new Exception\RuntimeException(
+                sprintf('Unsupported unicode character found "%s"', dechex($uniCode))
+            );
         }
 
         return $utf8Char;
@@ -1067,7 +1063,7 @@ class PythonPickle extends AbstractAdapter
     {
         // read byte length
         $n = $this->read(4);
-        if (self::$isLittleEndian === false) {
+        if (static::$isLittleEndian === false) {
             $n = strrev($n);
         }
         list(, $n) = unpack('l', $n);
@@ -1296,7 +1292,7 @@ class PythonPickle extends AbstractAdapter
      */
     protected function unquoteString($str)
     {
-        $quoteArr = array_flip(self::$quoteString);
+        $quoteArr = array_flip(static::$quoteString);
 
         if ($str[0] == '"') {
             $quoteArr['\\"'] = '"';
@@ -1341,7 +1337,7 @@ class PythonPickle extends AbstractAdapter
             if ($this->bigIntegerAdapter === null) {
                 $this->bigIntegerAdapter = BigInteger\BigInteger::getDefaultAdapter();
             }
-            if (self::$isLittleEndian === true) {
+            if (static::$isLittleEndian === true) {
                 $data = strrev($data);
             }
             $long = $this->bigIntegerAdapter->binToInt($data, true);

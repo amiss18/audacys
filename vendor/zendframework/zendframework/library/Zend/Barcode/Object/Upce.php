@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Barcode
  */
 
 namespace Zend\Barcode\Object;
@@ -14,13 +13,9 @@ use Zend\Validator\Barcode as BarcodeValidator;
 
 /**
  * Class for generate UpcA barcode
- *
- * @category   Zend
- * @package    Zend_Barcode
  */
 class Upce extends Ean13
 {
-
     protected $parities = array(
         0 => array(
             0 => array('B','B','B','A','A','A'),
@@ -64,15 +59,15 @@ class Upce extends Ean13
     public function getText()
     {
         $text = parent::getText();
-        if ($text{0} != 1) {
-            $text{0} = 0;
+        if ($text[0] != 1) {
+            $text[0] = 0;
         }
         return $text;
     }
 
     /**
      * Width of the barcode (in pixels)
-     * @return integer
+     * @return int
      */
     protected function calculateBarcodeWidth()
     {
@@ -93,9 +88,9 @@ class Upce extends Ean13
         $height = ($this->drawText) ? 1.1 : 1;
 
         // Start character (101)
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(0 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , $height);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(0, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, $height);
 
         $textTable = str_split($this->getText());
         $system = 0;
@@ -108,17 +103,17 @@ class Upce extends Ean13
         for ($i = 1; $i < 7; $i++) {
             $bars = str_split($this->codingMap[$parity[$i - 1]][$textTable[$i]]);
             foreach ($bars as $b) {
-                $barcodeTable[] = array($b , $this->barThinWidth , 0 , 1);
+                $barcodeTable[] = array($b, $this->barThinWidth, 0, 1);
             }
         }
 
         // Stop character (10101)
-        $barcodeTable[] = array(0 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(0 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(0 , $this->barThinWidth , 0 , $height);
-        $barcodeTable[] = array(1 , $this->barThinWidth , 0 , $height);
+        $barcodeTable[] = array(0, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(0, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(0, $this->barThinWidth, 0, $height);
+        $barcodeTable[] = array(1, $this->barThinWidth, 0, $height);
         return $barcodeTable;
     }
 
@@ -142,8 +137,7 @@ class Upce extends Ean13
                     $fontSize * $this->factor,
                     $this->rotate(
                         $leftPosition,
-                        (int) $this->withBorder * 2
-                            + $this->factor * ($this->barHeight + $fontSize) + 1
+                        (int) $this->withBorder * 2 + $this->factor * ($this->barHeight + $fontSize) + 1
                     ),
                     $this->font,
                     $this->foreColor,
@@ -197,8 +191,8 @@ class Upce extends Ean13
     public function getChecksum($text)
     {
         $text = $this->addLeadingZeros($text, true);
-        if ($text{0} != 1) {
-            $text{0} = 0;
+        if ($text[0] != 1) {
+            $text[0] = 0;
         }
         return parent::getChecksum($text);
     }

@@ -3,21 +3,15 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Filter
  */
 
 namespace Zend\Filter;
 
 use Traversable;
-use Zend\Stdlib\ArrayUtils;
-use Zend\Stdlib\ErrorHandler;
+use Zend\Stdlib\StringUtils;
 
-/**
- * @category   Zend
- * @package    Zend_Filter
- */
 abstract class AbstractFilter implements FilterInterface
 {
     /**
@@ -28,31 +22,17 @@ abstract class AbstractFilter implements FilterInterface
     protected $options = array();
 
     /**
-     * Is PCRE is compiled with UTF-8 and Unicode support
-     *
-     * @var boolean
-     **/
-    protected static $hasPcreUnicodeSupport = null;
-
-    /**
      * @return bool
+     * @deprecated Since 2.1.0
      */
     public static function hasPcreUnicodeSupport()
     {
-        if (static::$hasPcreUnicodeSupport === null) {
-            static::$hasPcreUnicodeSupport = false;
-            ErrorHandler::start();
-            if (defined('PREG_BAD_UTF8_OFFSET_ERROR') || preg_match('/\pL/u', 'a') == 1) {
-                static::$hasPcreUnicodeSupport = true;
-            }
-            ErrorHandler::stop();
-        }
-        return static::$hasPcreUnicodeSupport;
+        return StringUtils::hasPcreUnicodeSupport();
     }
 
     /**
      * @param  array|Traversable $options
-     * @return AbstractFilter
+     * @return self
      * @throws Exception\InvalidArgumentException
      */
     public function setOptions($options)
@@ -72,10 +52,14 @@ abstract class AbstractFilter implements FilterInterface
             } elseif (array_key_exists($key, $this->options)) {
                 $this->options[$key] = $value;
             } else {
-                throw new Exception\InvalidArgumentException(sprintf(
-                    'The option "%s" does not have a matching %s setter method or options[%s] array key',
-                    $key, $setter, $key
-                ));
+                throw new Exception\InvalidArgumentException(
+                    sprintf(
+                        'The option "%s" does not have a matching %s setter method or options[%s] array key',
+                        $key,
+                        $setter,
+                        $key
+                    )
+                );
             }
         }
         return $this;
@@ -106,7 +90,6 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
-     *
      * @param  mixed $options
      * @return bool
      */

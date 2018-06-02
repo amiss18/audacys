@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Writer\Renderer\Feed;
@@ -15,11 +14,9 @@ use DOMDocument;
 use DOMElement;
 use Zend\Feed\Writer;
 use Zend\Feed\Writer\Renderer;
-use Zend\Version\Version;
+use Zend\Feed\Writer\Version;
 
 /**
-* @category Zend
-* @package Zend_Feed_Writer
 */
 class AbstractAtom extends Renderer\AbstractRenderer
 {
@@ -121,7 +118,7 @@ class AbstractAtom extends Renderer\AbstractRenderer
         $updated = $dom->createElement('updated');
         $root->appendChild($updated);
         $text = $dom->createTextNode(
-            $this->getDataContainer()->getDateModified()->format(DateTime::ISO8601)
+            $this->getDataContainer()->getDateModified()->format(DateTime::ATOM)
         );
         $updated->appendChild($text);
     }

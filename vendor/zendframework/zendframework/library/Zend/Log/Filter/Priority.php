@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Log
  */
 
 namespace Zend\Log\Filter;
@@ -13,11 +12,6 @@ namespace Zend\Log\Filter;
 use Traversable;
 use Zend\Log\Exception;
 
-/**
- * @category   Zend
- * @package    Zend_Log
- * @subpackage Filter
- */
 class Priority implements FilterInterface
 {
     /**
@@ -48,14 +42,14 @@ class Priority implements FilterInterface
             $operator = isset($priority['operator']) ? $priority['operator'] : null;
             $priority = isset($priority['priority']) ? $priority['priority'] : null;
         }
-        if (!is_int($priority)) {
+        if (!is_int($priority) && !ctype_digit($priority)) {
             throw new Exception\InvalidArgumentException(sprintf(
-                'Priority must be an integer; received "%s"',
+                'Priority must be a number, received "%s"',
                 gettype($priority)
             ));
         }
 
-        $this->priority = $priority;
+        $this->priority = (int) $priority;
         $this->operator = $operator === null ? '<=' : $operator;
     }
 
@@ -63,7 +57,7 @@ class Priority implements FilterInterface
      * Returns TRUE to accept the message, FALSE to block it.
      *
      * @param array $event event data
-     * @return boolean accepted?
+     * @return bool accepted?
      */
     public function filter(array $event)
     {

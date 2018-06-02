@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Adapter\Driver\Pdo;
@@ -13,19 +12,19 @@ namespace Zend\Db\Adapter\Driver\Pdo;
 use Zend\Db\Adapter\Driver\StatementInterface;
 use Zend\Db\Adapter\Exception;
 use Zend\Db\Adapter\ParameterContainer;
+use Zend\Db\Adapter\Profiler;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Adapter
- */
-class Statement implements StatementInterface
+class Statement implements StatementInterface, Profiler\ProfilerAwareInterface
 {
-
     /**
      * @var \PDO
      */
     protected $pdo = null;
+
+    /**
+     * @var Profiler\ProfilerInterface
+     */
+    protected $profiler = null;
 
     /**
      * @var Pdo
@@ -40,7 +39,7 @@ class Statement implements StatementInterface
 
     /**
      *
-     * @var boolean
+     * @var bool
      */
     protected $isQuery = null;
 
@@ -62,7 +61,7 @@ class Statement implements StatementInterface
 
     /**
      *
-     * @var boolean
+     * @var bool
      */
     protected $isPrepared = false;
 
@@ -76,6 +75,24 @@ class Statement implements StatementInterface
     {
         $this->driver = $driver;
         return $this;
+    }
+
+    /**
+     * @param Profiler\ProfilerInterface $profiler
+     * @return Statement
+     */
+    public function setProfiler(Profiler\ProfilerInterface $profiler)
+    {
+        $this->profiler = $profiler;
+        return $this;
+    }
+
+    /**
+     * @return null|Profiler\ProfilerInterface
+     */
+    public function getProfiler()
+    {
+        return $this->profiler;
     }
 
     /**
@@ -162,7 +179,7 @@ class Statement implements StatementInterface
             throw new Exception\RuntimeException('This statement has been prepared already');
         }
 
-        if ($sql == null) {
+        if ($sql === null) {
             $sql = $this->sql;
         }
 
@@ -185,7 +202,7 @@ class Statement implements StatementInterface
     }
 
     /**
-     * @param mixed $parameters
+     * @param null|array|ParameterContainer $parameters
      * @throws Exception\InvalidQueryException
      * @return Result
      */
@@ -214,10 +231,25 @@ class Statement implements StatementInterface
         }
         /** END Standard ParameterContainer Merging Block */
 
+        if ($this->profiler) {
+            $this->profiler->profilerStart($this);
+        }
+
         try {
             $this->resource->execute();
         } catch (\PDOException $e) {
-            throw new Exception\InvalidQueryException('Statement could not be executed', null, $e);
+            if ($this->profiler) {
+                $this->profiler->profilerFinish();
+            }
+            throw new Exception\InvalidQueryException(
+                'Statement could not be executed (' . implode(' - ', $this->resource->errorInfo()) . ')',
+                null,
+                $e
+            );
+        }
+
+        if ($this->profiler) {
+            $this->profiler->profilerFinish();
         }
 
         $result = $this->driver->createResult($this->resource, $this);
@@ -235,7 +267,13 @@ class Statement implements StatementInterface
 
         $parameters = $this->parameterContainer->getNamedArray();
         foreach ($parameters as $name => &$value) {
-            $type = \PDO::PARAM_STR;
+            if (is_bool($value)) {
+                $type = \PDO::PARAM_BOOL;
+            } elseif (is_int($value)) {
+                $type = \PDO::PARAM_INT;
+            } else {
+                $type = \PDO::PARAM_STR;
+            }
             if ($this->parameterContainer->offsetHasErrata($name)) {
                 switch ($this->parameterContainer->offsetGetErrata($name)) {
                     case ParameterContainer::TYPE_INTEGER:
@@ -247,9 +285,6 @@ class Statement implements StatementInterface
                     case ParameterContainer::TYPE_LOB:
                         $type = \PDO::PARAM_LOB;
                         break;
-                    case (is_bool($value)):
-                        $type = \PDO::PARAM_BOOL;
-                        break;
                 }
             }
 
@@ -257,7 +292,6 @@ class Statement implements StatementInterface
             $parameter = is_int($name) ? ($name + 1) : $name;
             $this->resource->bindParam($parameter, $value, $type);
         }
-
     }
 
     /**
@@ -272,7 +306,5 @@ class Statement implements StatementInterface
         if ($this->parameterContainer) {
             $this->parameterContainer = clone $this->parameterContainer;
         }
-
     }
-
 }

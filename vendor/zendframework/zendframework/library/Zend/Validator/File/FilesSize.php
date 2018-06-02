@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Validator
  */
 
 namespace Zend\Validator\File;
@@ -18,8 +17,6 @@ use Zend\Validator\Exception;
 /**
  * Validator for the size of all files which will be validated in sum
  *
- * @category  Zend
- * @package   Zend_Validate
  */
 class FilesSize extends Size
 {
@@ -52,7 +49,7 @@ class FilesSize extends Size
      * Min limits the used disk space for all files, when used with max=null it is the maximum file size
      * It also accepts an array with the keys 'min' and 'max'
      *
-     * @param  integer|array|Traversable $options Options for this validator
+     * @param  int|array|Traversable $options Options for this validator
      * @throws \Zend\Validator\Exception\InvalidArgumentException
      */
     public function __construct($options = null)
@@ -86,11 +83,13 @@ class FilesSize extends Size
      *
      * @param  string|array $value Real file to check for size
      * @param  array        $file  File data from \Zend\File\Transfer\Transfer
-     * @return boolean
+     * @return bool
      */
     public function isValid($value, $file = null)
     {
         if (is_string($value)) {
+            $value = array($value);
+        } elseif (is_array($value) && isset($value['tmp_name'])) {
             $value = array($value);
         }
 
@@ -98,8 +97,18 @@ class FilesSize extends Size
         $max  = $this->getMax(true);
         $size = $this->getSize();
         foreach ($value as $files) {
+            if (is_array($files)) {
+                if (!isset($files['tmp_name']) || !isset($files['name'])) {
+                    throw new Exception\InvalidArgumentException(
+                        'Value array must be in $_FILES format'
+                    );
+                }
+                $file = $files;
+                $files = $files['tmp_name'];
+            }
+
             // Is file readable ?
-            if (false === stream_resolve_include_path($files)) {
+            if (empty($files) || false === stream_resolve_include_path($files)) {
                 $this->throwError($file, self::NOT_READABLE);
                 continue;
             }
@@ -147,5 +156,28 @@ class FilesSize extends Size
         }
 
         return true;
+    }
+
+    /**
+     * Throws an error of the given type
+     *
+     * @param  string $file
+     * @param  string $errorType
+     * @return false
+     */
+    protected function throwError($file, $errorType)
+    {
+        if ($file !== null) {
+            if (is_array($file)) {
+                if (array_key_exists('name', $file)) {
+                    $this->value = $file['name'];
+                }
+            } elseif (is_string($file)) {
+                $this->value = $file;
+            }
+        }
+
+        $this->error($errorType);
+        return false;
     }
 }

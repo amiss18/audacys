@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Filter
  */
 
 namespace Zend\Filter;
@@ -13,10 +12,6 @@ namespace Zend\Filter;
 use Traversable;
 use Zend\Stdlib\ArrayUtils;
 
-/**
- * @category   Zend
- * @package    Zend_Filter
- */
 class StripTags extends AbstractFilter
 {
     /**
@@ -95,7 +90,7 @@ class StripTags extends AbstractFilter
      * Sets the tagsAllowed option
      *
      * @param  array|string $tagsAllowed
-     * @return StripTags Provides a fluent interface
+     * @return self Provides a fluent interface
      */
     public function setTagsAllowed($tagsAllowed)
     {
@@ -110,9 +105,8 @@ class StripTags extends AbstractFilter
                 $tagName = strtolower($element);
                 // Store the tag as allowed with no attributes
                 $this->tagsAllowed[$tagName] = array();
-            }
-            // Otherwise, if a tag was provided with attributes
-            elseif (is_string($index) && (is_array($element) || is_string($element))) {
+            } elseif (is_string($index) && (is_array($element) || is_string($element))) {
+                // Otherwise, if a tag was provided with attributes
                 // Canonicalize the tag name
                 $tagName = strtolower($index);
                 // Canonicalize the attributes
@@ -148,7 +142,7 @@ class StripTags extends AbstractFilter
      * Sets the attributesAllowed option
      *
      * @param  array|string $attributesAllowed
-     * @return StripTags Provides a fluent interface
+     * @return self Provides a fluent interface
      */
     public function setAttributesAllowed($attributesAllowed)
     {
@@ -171,13 +165,17 @@ class StripTags extends AbstractFilter
     /**
      * Defined by Zend\Filter\FilterInterface
      *
-     * @todo improve docblock descriptions
+     * If the value provided is non-scalar, the value will remain unfiltered
      *
+     * @todo   improve docblock descriptions
      * @param  string $value
-     * @return string
+     * @return string|mixed
      */
     public function filter($value)
     {
+        if (!is_scalar($value)) {
+            return $value;
+        }
         $value = (string) $value;
 
         // Strip HTML comments first
@@ -190,7 +188,7 @@ class StripTags extends AbstractFilter
             if (!preg_match('/--\s*>/s', $value)) {
                 $value = '';
             } else {
-                $value = preg_replace('/<(?:!(?:--[\s\S]*?--\s*)?(>))/s', '',  $value);
+                $value = preg_replace('/<(?:!(?:--[\s\S]*?--\s*)?(>))/s', '', $value);
             }
 
             $value = $start . $value;
@@ -269,7 +267,7 @@ class StripTags extends AbstractFilter
             foreach ($matches[1] as $index => $attributeName) {
                 $attributeName      = strtolower($attributeName);
                 $attributeDelimiter = empty($matches[2][$index]) ? $matches[4][$index] : $matches[2][$index];
-                $attributeValue     = empty($matches[3][$index]) ? $matches[5][$index] : $matches[3][$index];
+                $attributeValue     = (strlen($matches[3][$index]) == 0) ? $matches[5][$index] : $matches[3][$index];
 
                 // If the attribute is not allowed, then remove it entirely
                 if (!array_key_exists($attributeName, $this->tagsAllowed[$tagName])

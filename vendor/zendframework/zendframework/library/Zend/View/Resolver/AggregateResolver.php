@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_View
  */
 
 namespace Zend\View\Resolver;
@@ -13,15 +12,9 @@ namespace Zend\View\Resolver;
 use Countable;
 use IteratorAggregate;
 use Zend\Stdlib\PriorityQueue;
-use Zend\View\Exception;
 use Zend\View\Renderer\RendererInterface as Renderer;
 use Zend\View\Resolver\ResolverInterface as Resolver;
 
-/**
- * @category   Zend
- * @package    Zend_View
- * @subpackage Resolver
- */
 class AggregateResolver implements Countable, IteratorAggregate, ResolverInterface
 {
     const FAILURE_NO_RESOLVERS = 'AggregateResolver_Failure_No_Resolvers';
@@ -106,14 +99,11 @@ class AggregateResolver implements Countable, IteratorAggregate, ResolverInterfa
 
         foreach ($this->queue as $resolver) {
             $resource = $resolver->resolve($name, $renderer);
-            if (!$resource) {
-                // No resource found; try next resolver
-                continue;
+            if ($resource) {
+                // Resource found; return it
+                $this->lastSuccessfulResolver = $resolver;
+                return $resource;
             }
-
-            // Resource found; return it
-            $this->lastSuccessfulResolver = $resolver;
-            return $resource;
         }
 
         $this->lastLookupFailure = static::FAILURE_NOT_FOUND;

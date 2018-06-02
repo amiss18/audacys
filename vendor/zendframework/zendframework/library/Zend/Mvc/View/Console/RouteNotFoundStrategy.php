@@ -3,55 +3,49 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mvc
  */
 
 namespace Zend\Mvc\View\Console;
 
-use Zend\Mvc\Application;
-use Zend\Mvc\MvcEvent;
+use Zend\Console\Adapter\AdapterInterface as ConsoleAdapter;
+use Zend\Console\ColorInterface;
+use Zend\Console\Response as ConsoleResponse;
+use Zend\Console\Request as ConsoleRequest;
+use Zend\EventManager\AbstractListenerAggregate;
 use Zend\EventManager\EventManagerInterface;
-use Zend\EventManager\ListenerAggregateInterface;
-use Zend\ServiceManager\ServiceManager;
-use Zend\ServiceManager\Exception\ServiceNotFoundException;
 use Zend\ModuleManager\ModuleManagerInterface;
 use Zend\ModuleManager\Feature\ConsoleBannerProviderInterface;
 use Zend\ModuleManager\Feature\ConsoleUsageProviderInterface;
+use Zend\Mvc\Application;
 use Zend\Mvc\Exception\RuntimeException;
-use Zend\Console\Response as ConsoleResponse;
-use Zend\Console\Request as ConsoleRequest;
-use Zend\Console\Adapter\AdapterInterface as ConsoleAdapter;
-use Zend\Mvc\Router\RouteInterface;
-use Zend\View\Model\ConsoleModel;
-use Zend\Version\Version;
+use Zend\Mvc\MvcEvent;
+use Zend\ServiceManager\Exception\ServiceNotFoundException;
 use Zend\Stdlib\ResponseInterface as Response;
+use Zend\Stdlib\StringUtils;
+use Zend\Text\Table;
+use Zend\Version\Version;
+use Zend\View\Model\ConsoleModel;
 
-/**
- * @category   Zend
- * @package    Zend_Mvc
- * @subpackage View
- */
-class RouteNotFoundStrategy implements ListenerAggregateInterface
+class RouteNotFoundStrategy extends AbstractListenerAggregate
 {
     /**
-     * @var \Zend\Stdlib\CallbackHandler[]
+     * Whether or not to display the reason for routing failure
+     *
+     * @var bool
      */
-    protected $listeners = array();
+    protected $displayNotFoundReason = true;
 
     /**
      * The reason for a not-found condition
      *
-     * @var boolean|string
+     * @var bool|string
      */
     protected $reason = false;
 
     /**
-     * Attach the aggregate to the specified event manager
-     *
-     * @param  EventManagerInterface $events
-     * @return void
+     * {@inheritDoc}
      */
     public function attach(EventManagerInterface $events)
     {
@@ -59,18 +53,25 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
     }
 
     /**
-     * Detach aggregate listeners from the specified event manager
+     * Set flag indicating whether or not to display the routing failure
      *
-     * @param  EventManagerInterface $events
-     * @return void
+     * @param  bool $displayNotFoundReason
+     * @return RouteNotFoundStrategy
      */
-    public function detach(EventManagerInterface $events)
+    public function setDisplayNotFoundReason($displayNotFoundReason)
     {
-        foreach ($this->listeners as $index => $listener) {
-            if ($events->detach($listener)) {
-                unset($this->listeners[$index]);
-            }
-        }
+        $this->displayNotFoundReason = (bool) $displayNotFoundReason;
+        return $this;
+    }
+
+    /**
+     * Do we display the routing failure?
+     *
+     * @return bool
+     */
+    public function displayNotFoundReason()
+    {
+        return $this->displayNotFoundReason;
     }
 
     /**
@@ -92,7 +93,7 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
         }
 
         $response = $e->getResponse();
-        $request = $e->getRequest();
+        $request  = $e->getRequest();
 
         switch ($error) {
             case Application::ERROR_CONTROLLER_NOT_FOUND:
@@ -123,48 +124,41 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
         $sm = $e->getApplication()->getServiceManager();
 
         // Try to fetch module manager
-        try{
+        $mm = null;
+        try {
             $mm = $sm->get('ModuleManager');
-        } catch (ServiceNotFoundException $e) {
+        } catch (ServiceNotFoundException $exception) {
             // The application does not have or use module manager, so we cannot use it
-            $mm = null;
         }
 
         // Try to fetch current console adapter
-        try{
+        try {
             $console = $sm->get('console');
             if (!$console instanceof ConsoleAdapter) {
                 throw new ServiceNotFoundException();
             }
-        } catch (ServiceNotFoundException $e) {
+        } catch (ServiceNotFoundException $exception) {
             // The application does not have console adapter
             throw new RuntimeException('Cannot access Console adapter - is it defined in ServiceManager?');
         }
 
-        // Try to fetch router
-        try{
-            $router = $sm->get('Router');
-        } catch (ServiceNotFoundException $e) {
-            // The application does not have a router
-            $router = null;
-        }
-
         // Retrieve the script's name (entry point)
+        $scriptName = '';
         if ($request instanceof ConsoleRequest) {
             $scriptName = basename($request->getScriptName());
-        } else {
-            $scriptName = '';
         }
 
         // Get application banner
         $banner = $this->getConsoleBanner($console, $mm);
 
         // Get application usage information
-        $usage = $this->getConsoleUsage($console, $scriptName, $mm, $router);
+        $usage = $this->getConsoleUsage($console, $scriptName, $mm);
 
-        // Inject the text into view model
-        $result = $banner ? rtrim($banner,"\r\n") : '';
-        $result .= $usage ? "\n\n" . trim($usage,"\r\n") : '';
+        // Inject the text into view
+        $result  = $banner ? rtrim($banner, "\r\n")        : '';
+        $result .= $usage  ? "\n\n" . trim($usage, "\r\n") : '';
+        $result .= "\n"; // to ensure we output a final newline
+        $result .= $this->reportNotFoundReason($e);
         $model->setResult($result);
 
         // Inject the result into MvcEvent
@@ -181,32 +175,42 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
      */
     protected function getConsoleBanner(ConsoleAdapter $console, ModuleManagerInterface $moduleManager = null)
     {
-        /**
+        /*
          * Loop through all loaded modules and collect banners
          */
         $banners = array();
         if ($moduleManager !== null) {
             foreach ($moduleManager->getLoadedModules(false) as $module) {
-                if (!$module instanceof ConsoleBannerProviderInterface) {
+                // Strict-type on ConsoleBannerProviderInterface, or duck-type
+                // on the method it defines
+                if (!$module instanceof ConsoleBannerProviderInterface
+                    && !method_exists($module, 'getConsoleBanner')
+                ) {
                     continue; // this module does not provide a banner
                 }
 
-                /* @var $module ConsoleBannerProviderInterface */
-                $banners[] = $module->getConsoleBanner($console);
+                // Don't render empty completely empty lines
+                $banner = $module->getConsoleBanner($console);
+                if ($banner == '') {
+                    continue;
+                }
+
+                // We colorize each banners in blue for visual emphasis
+                $banners[] = $console->colorize($banner, ColorInterface::BLUE);
             }
         }
 
-        /**
+        /*
          * Handle an application with no defined banners
          */
         if (!count($banners)) {
-            return "Zend Framework " . Version::VERSION . " application.\nUsage:\n";
+            return sprintf("Zend Framework %s application\nUsage:\n", Version::VERSION);
         }
 
-        /**
+        /*
          * Join the banners by a newline character
          */
-        return join("\n", $banners);
+        return implode("\n", $banners);
     }
 
     /**
@@ -223,29 +227,44 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
         $scriptName,
         ModuleManagerInterface $moduleManager = null
     ) {
-        /**
+        /*
          * Loop through all loaded modules and collect usage info
          */
         $usageInfo = array();
 
         if ($moduleManager !== null) {
             foreach ($moduleManager->getLoadedModules(false) as $name => $module) {
-                if (!$module instanceof ConsoleUsageProviderInterface) {
+                // Strict-type on ConsoleUsageProviderInterface, or duck-type
+                // on the method it defines
+                if (!$module instanceof ConsoleUsageProviderInterface
+                    && !method_exists($module, 'getConsoleUsage')
+                ) {
                     continue; // this module does not provide usage info
                 }
 
-                /* @var $module ConsoleUsageProviderInterface */
+                // We prepend the usage by the module name (printed in red), so that each module is
+                // clearly visible by the user
+                $moduleName = sprintf("%s\n%s\n%s\n",
+                    str_repeat('-', $console->getWidth()),
+                    $name,
+                    str_repeat('-', $console->getWidth())
+                );
+
+                $moduleName = $console->colorize($moduleName, ColorInterface::RED);
+
                 $usage = $module->getConsoleUsage($console);
 
                 // Normalize what we got from the module or discard
-                if (is_array($usage))
+                if (is_array($usage) && !empty($usage)) {
+                    array_unshift($usage, $moduleName);
                     $usageInfo[$name] = $usage;
-                elseif (is_string($usage))
-                    $usageInfo[$name] = array($usage);
+                } elseif (is_string($usage) && ($usage != '')) {
+                    $usageInfo[$name] = array($moduleName, $usage);
+                }
             }
         }
 
-        /**
+        /*
          * Handle an application with no usage information
          */
         if (!count($usageInfo)) {
@@ -253,71 +272,84 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
             return '';
         }
 
-        /**
+        /*
          * Transform arrays in usage info into columns, otherwise join everything together
          */
-        $result = '';
-        $table = false;
+        $result    = '';
+        $table     = false;
         $tableCols = 0;
         $tableType = 0;
         foreach ($usageInfo as $moduleName => $usage) {
+            if (!is_string($usage) && !is_array($usage)) {
+                throw new RuntimeException(sprintf(
+                    'Cannot understand usage info for module "%s"',
+                    $moduleName
+                ));
+            }
+
             if (is_string($usage)) {
                 // It's a plain string - output as is
                 $result .= $usage . "\n";
-            } elseif (is_array($usage)) {
-                // It's an array, analyze it
-                foreach ($usage as $a => $b) {
-                    if (is_string($a) && is_string($b)) {
-                        /**
-                         *    'ivocation method' => 'explanation'
-                         */
-                        if (($tableCols !== 2 || $tableType != 1) && $table !== false) {
-                            // render last table
-                            $result .= $this->renderTable($table, $tableCols, $console->getWidth());
-                            $table = false;
+                continue;
+            }
 
-                             // add extra newline for clarity
-                            $result .= "\n";
-                        }
-
-                        $tableCols = 2;
-                        $tableType = 1;
-                        $table[] = array($scriptName . ' ' . $a, $b);
-                    } elseif (is_array($b)) {
-                        /**
-                         *  array( '--param', '--explanation' )
-                         */
-                        if ((count($b) != $tableCols || $tableType != 2) && $table !== false) {
-                            // render last table
-                            $result .= $this->renderTable($table, $tableCols, $console->getWidth());
-                            $table = false;
-
-                             // add extra newline for clarity
-                            $result .= "\n";
-                        }
-
-                        $tableCols = count($b);
-                        $tableType = 2;
-                        $table[] = $b;
-                    } else {
-                        /**
-                         *    'A single line of text'
-                         */
-                        if ($table !== false) {
-                            // render last table
-                            $result .= $this->renderTable($table, $tableCols, $console->getWidth());
-                            $table = false;
+            // It's an array, analyze it
+            foreach ($usage as $a => $b) {
+                /*
+                 * 'invocation method' => 'explanation'
+                 */
+                if (is_string($a) && is_string($b)) {
+                    if (($tableCols !== 2 || $tableType != 1) && $table !== false) {
+                        // render last table
+                        $result .= $this->renderTable($table, $tableCols, $console->getWidth());
+                        $table   = false;
 
                             // add extra newline for clarity
-                            $result .= "\n";
-                        }
-
-                        $tableType = 0;
-                        $result .= $b . "\n";
+                        $result .= "\n";
                     }
+
+                    // Colorize the command
+                    $a = $console->colorize($scriptName . ' ' . $a, ColorInterface::GREEN);
+
+                    $tableCols = 2;
+                    $tableType = 1;
+                    $table[]   = array($a, $b);
+                    continue;
                 }
-            } else {
-                throw new RuntimeException('Cannot understand usage info for module ' . $moduleName);
+
+                /*
+                 * array('--param', '--explanation')
+                 */
+                if (is_array($b)) {
+                    if ((count($b) != $tableCols || $tableType != 2) && $table !== false) {
+                        // render last table
+                        $result .= $this->renderTable($table, $tableCols, $console->getWidth());
+                        $table   = false;
+
+                        // add extra newline for clarity
+                        $result .= "\n";
+                    }
+
+                    $tableCols = count($b);
+                    $tableType = 2;
+                    $table[]   = $b;
+                    continue;
+                }
+
+                /*
+                 * 'A single line of text'
+                 */
+                if ($table !== false) {
+                    // render last table
+                    $result .= $this->renderTable($table, $tableCols, $console->getWidth());
+                    $table   = false;
+
+                    // add extra newline for clarity
+                    $result .= "\n";
+                }
+
+                $tableType = 0;
+                $result   .= $b . "\n";
             }
         }
 
@@ -332,57 +364,67 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
     /**
      * Render a text table containing the data provided, that will fit inside console window's width.
      *
-     * @param $data
-     * @param $cols
-     * @param $consoleWidth
+     * @param  $data
+     * @param  $cols
+     * @param  $consoleWidth
      * @return string
      */
     protected function renderTable($data, $cols, $consoleWidth)
     {
-        $result = '';
+        $result  = '';
         $padding = 2;
+
 
         // If there is only 1 column, just concatenate it
         if ($cols == 1) {
             foreach ($data as $row) {
+                if (! isset($row[0])) {
+                    continue;
+                }
                 $result .= $row[0] . "\n";
             }
             return $result;
         }
 
+        // Get the string wrapper supporting UTF-8 character encoding
+        $strWrapper = StringUtils::getWrapper('UTF-8');
+
         // Determine max width for each column
         $maxW = array();
-        for ($x=1;$x<=$cols;$x++) {
+        for ($x = 1; $x <= $cols; $x += 1) {
             $maxW[$x] = 0;
             foreach ($data as $row) {
-                $maxW[$x] = max($maxW[$x], mb_strlen($row[$x-1],'utf-8') + $padding*2);
+                $maxW[$x] = max($maxW[$x], $strWrapper->strlen($row[$x-1]) + $padding * 2);
             }
         }
 
-        /**
-         * Check if the sum of x-1 columns fit inside console window width - 10 chars. If columns do not fit inside
-         * console window, then we'll just concatenate them and output as is.
+        /*
+         * Check if the sum of x-1 columns fit inside console window width - 10
+         * chars. If columns do not fit inside console window, then we'll just
+         * concatenate them and output as is.
          */
         $width = 0;
-        for ($x=1;$x<$cols;$x++) {
+        for ($x = 1; $x < $cols; $x += 1) {
             $width += $maxW[$x];
         }
+
         if ($width >= $consoleWidth - 10) {
             foreach ($data as $row) {
-                $result .= join("    ", $row) . "\n";
+                $result .= implode("    ", $row) . "\n";
             }
             return $result;
         }
 
-        /**
+        /*
          * Use Zend\Text\Table to render the table.
-         * The last column will use the remaining space in console window (minus 1 character to prevent double
-         * wrapping at the edge of the screen).
+         * The last column will use the remaining space in console window
+         * (minus 1 character to prevent double wrapping at the edge of the
+         * screen).
          */
         $maxW[$cols] = $consoleWidth - $width -1;
-        $table = new \Zend\Text\Table\Table();
+        $table       = new Table\Table();
         $table->setColumnWidths($maxW);
-        $table->setDecorator(new \Zend\Text\Table\Decorator\Blank());
+        $table->setDecorator(new Table\Decorator\Blank());
         $table->setPadding(2);
 
         foreach ($data as $row) {
@@ -390,5 +432,37 @@ class RouteNotFoundStrategy implements ListenerAggregateInterface
         }
 
         return $table->render();
+    }
+
+    /**
+     * Report the 404 reason and/or exceptions
+     *
+     * @param  \Zend\EventManager\EventInterface $e
+     * @return string
+     */
+    protected function reportNotFoundReason($e)
+    {
+        if (!$this->displayNotFoundReason()) {
+            return '';
+        }
+        $exception = $e->getParam('exception', false);
+        if (!$exception && !$this->reason) {
+            return '';
+        }
+
+        $reason    = (isset($this->reason) && !empty($this->reason)) ? $this->reason : 'unknown';
+        $reasons   = array(
+            Application::ERROR_CONTROLLER_NOT_FOUND => 'Could not match to a controller',
+            Application::ERROR_CONTROLLER_INVALID   => 'Invalid controller specified',
+            Application::ERROR_ROUTER_NO_MATCH      => 'Invalid arguments or no arguments provided',
+            'unknown'                               => 'Unknown',
+        );
+        $report = sprintf("\nReason for failure: %s\n", $reasons[$reason]);
+
+        while ($exception instanceof \Exception) {
+            $report   .= sprintf("Exception: %s\nTrace:\n%s\n", $exception->getMessage(), $exception->getTraceAsString());
+            $exception = $exception->getPrevious();
+        }
+        return $report;
     }
 }

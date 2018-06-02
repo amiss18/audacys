@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Reader\Feed;
@@ -14,12 +13,9 @@ use DOMDocument;
 use Zend\Feed\Reader;
 
 /**
-* @category Zend
-* @package Reader
 */
 class Atom extends AbstractFeed
 {
-
     /**
      * Constructor
      *
@@ -62,7 +58,7 @@ class Atom extends AbstractFeed
             return $authors[$index];
         }
 
-        return null;
+        return;
     }
 
     /**
@@ -156,7 +152,7 @@ class Atom extends AbstractFeed
      */
     public function getLastBuildDate()
     {
-        return null;
+        return;
     }
 
     /**
@@ -386,10 +382,9 @@ class Atom extends AbstractFeed
     {
         if ($this->getType() == Reader\Reader::TYPE_ATOM_10 ||
             $this->getType() == Reader\Reader::TYPE_ATOM_03) {
-            $entries = array();
             $entries = $this->xpath->evaluate('//atom:entry');
 
-            foreach ($entries as $index=>$entry) {
+            foreach ($entries as $index => $entry) {
                 $this->entries[$index] = $entry;
             }
         }

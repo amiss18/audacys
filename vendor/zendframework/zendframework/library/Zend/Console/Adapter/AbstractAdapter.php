@@ -3,20 +3,18 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Console
  */
 
 namespace Zend\Console\Adapter;
 
 use Zend\Console\Charset;
 use Zend\Console\Exception;
+use Zend\Stdlib\StringUtils;
 
 /**
- * @category   Zend
- * @package    Zend_Console
- * @subpackage Adapter
+ * Common console adapter codebase
  */
 abstract class AbstractAdapter implements AdapterInterface
 {
@@ -55,6 +53,9 @@ abstract class AbstractAdapter implements AdapterInterface
      */
     public function write($text, $color = null, $bgColor = null)
     {
+        //Encode text to match console encoding
+        $text = $this->encodeText($text);
+
         if ($color !== null || $bgColor !== null) {
             echo $this->colorize($text, $color, $bgColor);
         } else {
@@ -76,8 +77,6 @@ abstract class AbstractAdapter implements AdapterInterface
 
     /**
      * Write a single line of text to console and advance cursor to the next line.
-     * If the text is longer than console width it will be truncated.
-     *
      *
      * @param string   $text
      * @param null|int $color
@@ -85,24 +84,7 @@ abstract class AbstractAdapter implements AdapterInterface
      */
     public function writeLine($text = "", $color = null, $bgColor = null)
     {
-        $width = $this->getStringWidth($text);
-
-        // Remove newline characters from the end of string
-        $text = trim($text, "\r\n");
-
-        // Replace newline characters with spaces
-        $test = str_replace("\n", " ", $text);
-
-        // Trim the line if it's too long and output text
-        $consoleWidth = $this->getWidth();
-        if ($width > $consoleWidth) {
-            $text = $this->stringTrim($text, $consoleWidth);
-            $this->write($text, $color, $bgColor);
-        } elseif ($width == $consoleWidth) {
-            $this->write($text, $color, $bgColor);
-        } else {
-            $this->write($text . "\n", $color, $bgColor);
-        }
+        $this->write($text . PHP_EOL, $color, $bgColor);
     }
 
     /**
@@ -117,8 +99,8 @@ abstract class AbstractAdapter implements AdapterInterface
      */
     public function writeAt($text, $x, $y, $color = null, $bgColor = null)
     {
-        $this->setPos( $x, $y );
-        $this->write( $text, $color, $bgColor );
+        $this->setPos($x, $y);
+        $this->write($text, $color, $bgColor);
     }
 
     /**
@@ -177,7 +159,6 @@ abstract class AbstractAdapter implements AdapterInterface
         // Determine charset and dimensions
         $charset = $this->getCharset();
         $width   = $x2 - $x1 + 1;
-        $height  = $y2 - $y1 + 1;
 
         if ($width <= 2) {
             $lineStyle = static::LINE_NONE;
@@ -212,7 +193,6 @@ abstract class AbstractAdapter implements AdapterInterface
         // Draw vertical lines and fill
         if (is_numeric($fillStyle)
             && $fillStyle !== static::FILL_NONE) {
-
             switch ($fillStyle) {
                 case static::FILL_SHADE_LIGHT:
                     $fillChar = $charset::SHADE_LIGHT;
@@ -223,17 +203,13 @@ abstract class AbstractAdapter implements AdapterInterface
                 case static::FILL_SHADE_DARK:
                     $fillChar = $charset::SHADE_DARK;
                     break;
-                case static::FILL_SHADE_LIGHT:
-                    $fillChar = $charset::SHADE_LIGHT;
-                    break;
                 case static::FILL_BLOCK:
                 default:
                     $fillChar = $charset::BLOCK;
                     break;
             }
-
         } elseif ($fillStyle) {
-            $fillChar = $this->stringTrim($fillStyle, 1);
+            $fillChar = StringUtils::getWrapper()->substr($fillStyle, 0, 1);
         } else {
             $fillChar = ' ';
         }
@@ -264,7 +240,6 @@ abstract class AbstractAdapter implements AdapterInterface
                 $this->write($lineChar, $color, $bgColor);
             }
         }
-
 
         // Draw corners
         if ($lineStyle !== static::LINE_NONE) {
@@ -309,6 +284,7 @@ abstract class AbstractAdapter implements AdapterInterface
      * @param int      $y       Block Y coordinate (row)
      * @param null|int $color   (optional) Text color
      * @param null|int $bgColor (optional) Text background color
+     * @throws Exception\InvalidArgumentException
      */
     public function writeTextBlock(
         $text,
@@ -319,6 +295,43 @@ abstract class AbstractAdapter implements AdapterInterface
         $color = null,
         $bgColor = null
     ) {
+        if ($x < 0 || $y < 0) {
+            throw new Exception\InvalidArgumentException('Supplied X,Y coordinates are invalid.');
+        }
+
+        if ($width < 1) {
+            throw new Exception\InvalidArgumentException('Invalid width supplied.');
+        }
+
+        if (null !== $height && $height < 1) {
+            throw new Exception\InvalidArgumentException('Invalid height supplied.');
+        }
+
+        // ensure the text is not wider than the width
+        if (strlen($text) <= $width) {
+            // just write the line at the spec'd position
+            $this->setPos($x, $y);
+            $this->write($text, $color, $bgColor);
+            return;
+        }
+
+        $text = wordwrap($text, $width, PHP_EOL, true);
+
+        // convert to array of lines
+        $lines = explode(PHP_EOL, $text);
+
+        // truncate if height was specified
+        if (null !== $height && count($lines) > $height) {
+            $lines = array_slice($lines, 0, $height);
+        }
+
+        // write each line
+        $curY = $y;
+        foreach ($lines as $line) {
+            $this->setPos($x, $curY);
+            $this->write($line, $color, $bgColor);
+            $curY++;//next line
+        }
     }
 
     /**
@@ -344,7 +357,7 @@ abstract class AbstractAdapter implements AdapterInterface
     /**
      * Determine and return current console width and height.
      *
-     * @return array array($width, $height)
+     * @return int[] array($width, $height)
      */
     public function getSize()
     {
@@ -363,32 +376,6 @@ abstract class AbstractAdapter implements AdapterInterface
     {
         return true;
     }
-
-    /**
-     * Return current cursor position - array($x, $y)
-     *
-     *
-     * @return array array($x, $y);
-     */
-    public function getPos()
-    {
-    }
-
-//    /**
-//     * Return current cursor X coordinate (column)
-//     *
-//     *
-//     * @return  false|int       Integer or false if failed to determine.
-//     */
-//    public function getX();
-//
-//    /**
-//     * Return current cursor Y coordinate (row)
-//     *
-//     *
-//     * @return  false|int       Integer or false if failed to determine.
-//     */
-//    public function getY();
 
     /**
      * Set cursor position
@@ -422,22 +409,6 @@ abstract class AbstractAdapter implements AdapterInterface
     public function getTitle()
     {
         return '';
-    }
-
-    /**
-     * Set console window title
-     *
-     * @param $title
-     */
-    public function setTitle($title)
-    {
-    }
-
-    /**
-     * Reset console window title to previous value.
-     */
-    public function resetTitle()
-    {
     }
 
     /**
@@ -523,7 +494,7 @@ abstract class AbstractAdapter implements AdapterInterface
      */
     public function clearLine()
     {
-        echo "\r" . str_repeat( " ", $this->getWidth() ) . "\r";
+        echo "\r" . str_repeat(" ", $this->getWidth()) . "\r";
     }
 
     /**
@@ -535,56 +506,6 @@ abstract class AbstractAdapter implements AdapterInterface
     }
 
     /**
-     * Helper function that return string length as rendered in console.
-     *
-     * @static
-     * @param $string
-     * @return int
-     */
-    protected function getStringWidth($string)
-    {
-        $width = strlen($string);
-
-        if (!$this->isUtf8()) {
-            return $width;
-        }
-
-        if (static::$hasMBString === null) {
-            static::$hasMBString = extension_loaded( 'mbstring' );
-        }
-
-        $width = (static::$hasMBString)
-               ? mb_strlen($string, 'UTF-8' )
-               : strlen(utf8_decode($string));
-
-        return $width;
-    }
-
-    /**
-     * Trim a string in an encoding-safe way
-     *
-     * @param  mixed $string
-     * @param  mixed $length
-     * @return int
-     */
-    protected function stringTrim($string, $length)
-    {
-        if ($this->isUtf8()) {
-            if (static::$hasMBString === null) {
-                static::$hasMBString = extension_loaded('mbstring');
-            }
-
-            if (static::$hasMBString) {
-                return mb_strlen($string, 'UTF-8');
-            }
-
-            return strlen(utf8_decode($string));
-        }
-
-        return strlen($string);
-    }
-
-    /**
      * Read a single line from the console input
      *
      * @param int $maxLength        Maximum response length
@@ -592,10 +513,10 @@ abstract class AbstractAdapter implements AdapterInterface
      */
     public function readLine($maxLength = 2048)
     {
-        $f    = fopen('php://stdin','r');
+        $f    = fopen('php://stdin', 'r');
         $line = stream_get_line($f, $maxLength, PHP_EOL);
         fclose($f);
-        return rtrim($line,"\n\r");
+        return rtrim($line, "\n\r");
     }
 
     /**
@@ -606,11 +527,34 @@ abstract class AbstractAdapter implements AdapterInterface
      */
     public function readChar($mask = null)
     {
-        $f = fopen('php://stdin','r');
+        $f = fopen('php://stdin', 'r');
         do {
-            $char = fread($f,1);
-        } while ($mask === null || stristr($mask, $char));
+            $char = fread($f, 1);
+        } while ("" === $char || ($mask !== null && false === strstr($mask, $char)));
         fclose($f);
         return $char;
+    }
+
+    /**
+     * Encode a text to match console encoding
+     *
+     * @param  string $text
+     * @return string the encoding text
+     */
+    public function encodeText($text)
+    {
+        if ($this->isUtf8()) {
+            if (StringUtils::isValidUtf8($text)) {
+                return $text;
+            }
+
+            return utf8_encode($text);
+        }
+
+        if (StringUtils::isValidUtf8($text)) {
+            return utf8_decode($text);
+        }
+
+        return $text;
     }
 }

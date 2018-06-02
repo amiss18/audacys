@@ -3,20 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Protocol;
 
 use Zend\Stdlib\ErrorHandler;
 
-/**
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Protocol
- */
 class Imap
 {
     /**
@@ -70,12 +64,26 @@ class Imap
      */
     public function connect($host, $port = null, $ssl = false)
     {
-        if ($ssl == 'SSL') {
-            $host = 'ssl://' . $host;
+        $isTls = false;
+
+        if ($ssl) {
+            $ssl = strtolower($ssl);
         }
 
-        if ($port === null) {
-            $port = $ssl === 'SSL' ? 993 : 143;
+        switch ($ssl) {
+            case 'ssl':
+                $host = 'ssl://' . $host;
+                if (!$port) {
+                    $port = 993;
+                }
+                break;
+            case 'tls':
+                $isTls = true;
+                // break intentionally omitted
+            default:
+                if (!$port) {
+                    $port = 143;
+                }
         }
 
         ErrorHandler::start();
@@ -83,7 +91,7 @@ class Imap
         $error = ErrorHandler::stop();
         if (!$this->socket) {
             throw new Exception\RuntimeException(sprintf(
-                'cannot connect to host%s',
+                'cannot connect to host %s',
                 ($error ? sprintf('; error = %s (errno = %d )', $error->getMessage(), $error->getCode()) : '')
             ), 0, $error);
         }
@@ -92,7 +100,7 @@ class Imap
             throw new Exception\RuntimeException('host doesn\'t allow connection');
         }
 
-        if ($ssl === 'TLS') {
+        if ($isTls) {
             $result = $this->requestAndResponse('STARTTLS');
             $result = $result && stream_socket_enable_crypto($this->socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
             if (!$result) {
@@ -291,7 +299,7 @@ class Imap
         } elseif ($tokens[0] == 'NO') {
             return false;
         }
-        return null;
+        return;
     }
 
     /**
@@ -381,7 +389,6 @@ class Imap
         $result = array();
         foreach ($list as $v) {
             if (!is_array($v)) {
-//              $result[] = $this->escapeString($v);
                 $result[] = $v;
                 continue;
             }
@@ -421,7 +428,6 @@ class Imap
         }
         return $result;
     }
-
 
     /**
      * Get capabilities from IMAP server
@@ -473,7 +479,7 @@ class Imap
                     $result[strtolower($tokens[1])] = $tokens[0];
                     break;
                 case '[UIDVALIDITY':
-                    $result['uidvalidity'] = (int)$tokens[2];
+                    $result['uidvalidity'] = (int) $tokens[2];
                     break;
                 default:
                     // ignore
@@ -529,14 +535,14 @@ class Imap
         if (is_array($from)) {
             $set = implode(',', $from);
         } elseif ($to === null) {
-            $set = (int)$from;
+            $set = (int) $from;
         } elseif ($to === INF) {
-            $set = (int)$from . ':*';
+            $set = (int) $from . ':*';
         } else {
-            $set = (int)$from . ':' . (int)$to;
+            $set = (int) $from . ':' . (int) $to;
         }
 
-        $items = (array)$items;
+        $items = (array) $items;
         $itemList = $this->escapeList($items);
 
         $tag = null;  // define $tag variable before first use
@@ -579,7 +585,8 @@ class Imap
             // if we want only one message we can ignore everything else and just return
             if ($to === null && !is_array($from) && $tokens[0] == $from) {
                 // we still need to read all lines
-                while (!$this->readLine($tokens, $tag));
+                while (!$this->readLine($tokens, $tag)) {
+                }
                 return $data;
             }
             $result[$tokens[0]] = $data;
@@ -643,15 +650,15 @@ class Imap
         }
 
         $flags = $this->escapeList($flags);
-        $set = (int)$from;
-        if ($to != null) {
-            $set .= ':' . ($to == INF ? '*' : (int)$to);
+        $set = (int) $from;
+        if ($to !== null) {
+            $set .= ':' . ($to == INF ? '*' : (int) $to);
         }
 
         $result = $this->requestAndResponse('STORE', array($set, $item, $flags), $silent);
 
         if ($silent) {
-            return $result ? true : false;
+            return (bool) $result;
         }
 
         $tokens = $result;
@@ -702,9 +709,9 @@ class Imap
      */
     public function copy($folder, $from, $to = null)
     {
-        $set = (int)$from;
-        if ($to != null) {
-            $set .= ':' . ($to == INF ? '*' : (int)$to);
+        $set = (int) $from;
+        if ($to !== null) {
+            $set .= ':' . ($to == INF ? '*' : (int) $to);
         }
 
         return $this->requestAndResponse('COPY', array($set, $this->escapeString($folder)), true);
@@ -742,6 +749,17 @@ class Imap
     public function delete($folder)
     {
         return $this->requestAndResponse('DELETE', array($this->escapeString($folder)), true);
+    }
+
+    /**
+     * subscribe to a folder
+     *
+     * @param string $folder folder name
+     * @return bool success
+     */
+    public function subscribe($folder)
+    {
+        return $this->requestAndResponse('SUBSCRIBE', array($this->escapeString($folder)), true);
     }
 
     /**
@@ -790,5 +808,4 @@ class Imap
         }
         return array();
     }
-
 }

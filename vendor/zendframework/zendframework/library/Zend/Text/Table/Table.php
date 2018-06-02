@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Text
  */
 
 namespace Zend\Text\Table;
@@ -16,9 +15,6 @@ use Zend\Text\Table\Decorator\DecoratorInterface as Decorator;
 
 /**
  * Zend\Text\Table\Table enables developers to create tables out of characters
- *
- * @category  Zend
- * @package   Zend_Text_Table
  */
 class Table
 {
@@ -54,14 +50,14 @@ class Table
     /**
      * Auto separation mode
      *
-     * @var integer
+     * @var int
      */
     protected $autoSeparate = self::AUTO_SEPARATE_ALL;
 
     /**
      * Padding for columns
      *
-     * @var integer
+     * @var int
      */
     protected $padding = 0;
 
@@ -122,7 +118,7 @@ class Table
 
         // If no decorator was given, use default unicode decorator
         if ($this->decorator === null) {
-            if (self::getOutputCharset() === 'utf-8') {
+            if (static::getOutputCharset() === 'utf-8') {
                 $this->setDecorator('unicode');
             } else {
                 $this->setDecorator('ascii');
@@ -168,8 +164,7 @@ class Table
 
         foreach ($columnWidths as $columnNum => $columnWidth) {
             if (is_int($columnWidth) === false or $columnWidth < 1) {
-                throw new Exception\InvalidArgumentException('Column ' . $columnNum . ' has an invalid'
-                                                    . ' column width');
+                throw new Exception\InvalidArgumentException('Column ' . $columnNum . ' has an invalid column width');
             }
         }
 
@@ -181,7 +176,7 @@ class Table
     /**
      * Set auto separation mode
      *
-     * @param  integer $autoSeparate Auto separation mode
+     * @param  int $autoSeparate Auto separation mode
      * @return Table
      */
     public function setAutoSeparate($autoSeparate)
@@ -210,7 +205,7 @@ class Table
     /**
      * Set the column padding
      *
-     * @param  integer $padding The padding for the columns
+     * @param  int $padding The padding for the columns
      * @return Table
      */
     public function setPadding($padding)
@@ -249,7 +244,7 @@ class Table
     /**
      * Set default column align for rows created by appendRow(array $data)
      *
-     * @param  integer $columnNum
+     * @param  int $columnNum
      * @param  string  $align
      * @return Table
      */
@@ -267,7 +262,7 @@ class Table
      */
     public static function setInputCharset($charset)
     {
-        self::$inputCharset = strtolower($charset);
+        static::$inputCharset = strtolower($charset);
     }
 
     /**
@@ -277,7 +272,7 @@ class Table
      */
     public static function getInputCharset()
     {
-        return self::$inputCharset;
+        return static::$inputCharset;
     }
 
     /**
@@ -287,7 +282,7 @@ class Table
      */
     public static function setOutputCharset($charset)
     {
-        self::$outputCharset = strtolower($charset);
+        static::$outputCharset = strtolower($charset);
     }
 
     /**
@@ -297,14 +292,14 @@ class Table
      */
     public static function getOutputCharset()
     {
-        return self::$outputCharset;
+        return static::$outputCharset;
     }
 
     /**
      * Append a row to the table
      *
      * @param  array|Row $row The row to append to the table
-     * @throws Exception\InvalidArgumentException When $row is neither an array nor Zend_Zext_Table_Row
+     * @throws Exception\InvalidArgumentException When $row is neither an array nor Zend\Text\Table\Row
      * @throws Exception\OverflowException When a row contains too many columns
      * @return Table
      */
@@ -379,8 +374,7 @@ class Table
                 $result .= $this->decorator->getTopLeft();
 
                 foreach ($columnWidths as $columnNum => $columnWidth) {
-                    $result .= str_repeat($this->decorator->getHorizontal(),
-                                          $columnWidth);
+                    $result .= str_repeat($this->decorator->getHorizontal(), $columnWidth);
 
                     if (($columnNum + 1) === $numColumns) {
                         $result .= $this->decorator->getTopRight();
@@ -416,8 +410,7 @@ class Table
                     // Loop through all column widths
                     foreach ($this->columnWidths as $columnNum => $columnWidth) {
                         // Add the horizontal line
-                        $result .= str_repeat($this->decorator->getHorizontal(),
-                                              $columnWidth);
+                        $result .= str_repeat($this->decorator->getHorizontal(), $columnWidth);
 
                         // If this is the last line, break out
                         if (($columnNum + 1) === $totalNumColumns) {
@@ -480,8 +473,7 @@ class Table
                 $result .= $this->decorator->getBottomLeft();
 
                 foreach ($columnWidths as $columnNum => $columnWidth) {
-                    $result .= str_repeat($this->decorator->getHorizontal(),
-                                          $columnWidth);
+                    $result .= str_repeat($this->decorator->getHorizontal(), $columnWidth);
 
                     if (($columnNum + 1) === $numColumns) {
                         $result .= $this->decorator->getBottomRight();
@@ -509,6 +501,5 @@ class Table
         } catch (\Exception $e) {
             trigger_error($e->getMessage(), E_USER_ERROR);
         }
-
     }
 }

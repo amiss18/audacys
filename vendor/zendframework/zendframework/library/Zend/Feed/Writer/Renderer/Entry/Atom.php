@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Writer\Renderer\Entry;
@@ -13,15 +12,11 @@ namespace Zend\Feed\Writer\Renderer\Entry;
 use DateTime;
 use DOMDocument;
 use DOMElement;
+use Zend\Feed\Uri;
 use Zend\Feed\Writer;
 use Zend\Feed\Writer\Renderer;
-use Zend\Uri;
 use Zend\Validator;
 
-/**
- * @category Zend
- * @package Zend_Feed_Writer
- */
 class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterface
 {
     /**
@@ -29,7 +24,7 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
      *
      * @param  Writer\Entry $container
      */
-    public function __construct (Writer\Entry $container)
+    public function __construct(Writer\Entry $container)
     {
         parent::__construct($container);
     }
@@ -142,7 +137,7 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
         $updated = $dom->createElement('updated');
         $root->appendChild($updated);
         $text = $dom->createTextNode(
-            $this->getDataContainer()->getDateModified()->format(DateTime::ISO8601)
+            $this->getDataContainer()->getDateModified()->format(DateTime::ATOM)
         );
         $updated->appendChild($text);
     }
@@ -162,7 +157,7 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
         $el = $dom->createElement('published');
         $root->appendChild($el);
         $text = $dom->createTextNode(
-            $this->getDataContainer()->getDateCreated()->format(DateTime::ISO8601)
+            $this->getDataContainer()->getDateCreated()->format(DateTime::ATOM)
         );
         $el->appendChild($text);
     }
@@ -270,12 +265,14 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
 
         if (!$this->getDataContainer()->getId()) {
             $this->getDataContainer()->setId(
-                $this->getDataContainer()->getLink());
+                $this->getDataContainer()->getLink()
+            );
         }
-        if (!Uri\UriFactory::factory($this->getDataContainer()->getId())->isValid()
+        if (!Uri::factory($this->getDataContainer()->getId())->isValid()
             && !preg_match(
                 "#^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{1,31}:([a-zA-Z0-9\(\)\+\,\.\:\=\@\;\$\_\!\*\-]|%[0-9a-fA-F]{2})*#",
-                $this->getDataContainer()->getId())
+                $this->getDataContainer()->getId()
+            )
             && !$this->_validateTagUri($this->getDataContainer()->getId())
         ) {
             throw new Writer\Exception\InvalidArgumentException('Atom 1.0 IDs must be a valid URI/IRI');
@@ -294,9 +291,12 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
      */
     protected function _validateTagUri($id)
     {
-        if (preg_match('/^tag:(?P<name>.*),(?P<date>\d{4}-?\d{0,2}-?\d{0,2}):(?P<specific>.*)(.*:)*$/', $id, $matches)) {
+        if (preg_match(
+            '/^tag:(?P<name>.*),(?P<date>\d{4}-?\d{0,2}-?\d{0,2}):(?P<specific>.*)(.*:)*$/',
+            $id,
+            $matches
+        )) {
             $dvalid = false;
-            $nvalid = false;
             $date = $matches['date'];
             $d6 = strtotime($date);
             if ((strlen($date) == 4) && $date <= date('Y')) {
@@ -313,7 +313,6 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
                 $nvalid = $validator->isValid('info@' . $matches['name']);
             }
             return $dvalid && $nvalid;
-
         }
         return false;
     }
@@ -348,7 +347,8 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
         $element = $dom->createElement('content');
         $element->setAttribute('type', 'xhtml');
         $xhtmlElement = $this->_loadXhtml($content);
-        $xhtml = $dom->importNode($xhtmlElement, true);
+        $deep = version_compare(PHP_VERSION, '7', 'ge') ? 1 : true;
+        $xhtml = $dom->importNode($xhtmlElement, $deep);
         $element->appendChild($xhtml);
         $root->appendChild($element);
     }
@@ -358,7 +358,6 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
      */
     protected function _loadXhtml($content)
     {
-        $xhtml = '';
         if (class_exists('tidy', false)) {
             $tidy = new \tidy;
             $config = array(
@@ -377,8 +376,11 @@ class Atom extends Renderer\AbstractRenderer implements Renderer\RendererInterfa
             "/(<[\/]?)([a-zA-Z]+)/"
         ), '$1xhtml:$2', $xhtml);
         $dom = new DOMDocument('1.0', $this->getEncoding());
-        $dom->loadXML('<xhtml:div xmlns:xhtml="http://www.w3.org/1999/xhtml">'
-            . $xhtml . '</xhtml:div>');
+        $dom->loadXML(
+            '<xhtml:div xmlns:xhtml="http://www.w3.org/1999/xhtml">'
+            . $xhtml
+            . '</xhtml:div>'
+        );
         return $dom->documentElement;
     }
 

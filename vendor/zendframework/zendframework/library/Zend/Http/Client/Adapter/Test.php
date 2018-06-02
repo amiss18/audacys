@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Http
  */
 
 namespace Zend\Http\Client\Adapter;
@@ -17,14 +16,10 @@ use Zend\Stdlib\ArrayUtils;
 /**
  * A testing-purposes adapter.
  *
- * Should be used to test all components that rely on Zend_Http_Client,
+ * Should be used to test all components that rely on Zend\Http\Client,
  * without actually performing an HTTP request. You should instantiate this
  * object manually, and then set it as the client's adapter. Then, you can
  * set the expected response using the setResponse() method.
- *
- * @category   Zend
- * @package    Zend_Http
- * @subpackage Client_Adapter
  */
 class Test implements AdapterInterface
 {
@@ -46,14 +41,14 @@ class Test implements AdapterInterface
     /**
      * Current position in the response buffer
      *
-     * @var integer
+     * @var int
      */
     protected $responseIndex = 0;
 
     /**
      * Whether or not the next request will fail with an exception
      *
-     * @var boolean
+     * @var bool
      */
     protected $nextRequestWillFail = false;
 
@@ -61,12 +56,13 @@ class Test implements AdapterInterface
      * Adapter constructor, currently empty. Config is set using setOptions()
      */
     public function __construct()
-    { }
+    {
+    }
 
     /**
      * Set the nextRequestWillFail flag
      *
-     * @param boolean $flag
+     * @param  bool $flag
      * @return \Zend\Http\Client\Adapter\Test
      */
     public function setNextRequestWillFail($flag)
@@ -103,10 +99,9 @@ class Test implements AdapterInterface
     /**
      * Connect to the remote server
      *
-     * @param string  $host
-     * @param int     $port
-     * @param boolean $secure
-     * @param int     $timeout
+     * @param  string $host
+     * @param  int    $port
+     * @param  bool   $secure
      * @throws Exception\RuntimeException
      */
     public function connect($host, $port = 80, $secure = false)
@@ -122,25 +117,26 @@ class Test implements AdapterInterface
      *
      * @param string        $method
      * @param \Zend\Uri\Uri $uri
-     * @param string        $http_ver
+     * @param string        $httpVer
      * @param array         $headers
      * @param string        $body
      * @return string Request as string
      */
-    public function write($method, $uri, $http_ver = '1.1', $headers = array(), $body = '')
+    public function write($method, $uri, $httpVer = '1.1', $headers = array(), $body = '')
     {
-        $host = $uri->getHost();
-            $host = (strtolower($uri->getScheme()) == 'https' ? 'sslv2://' . $host : $host);
-
         // Build request headers
         $path = $uri->getPath();
         if (empty($path)) {
             $path = '/';
         }
-        if ($uri->getQuery()) $path .= '?' . $uri->getQuery();
-        $request = "{$method} {$path} HTTP/{$http_ver}\r\n";
+        if ($uri->getQuery()) {
+            $path .= '?' . $uri->getQuery();
+        }
+        $request = "{$method} {$path} HTTP/{$httpVer}\r\n";
         foreach ($headers as $k => $v) {
-            if (is_string($k)) $v = ucfirst($k) . ": $v";
+            if (is_string($k)) {
+                $v = ucfirst($k) . ": $v";
+            }
             $request .= "$v\r\n";
         }
 
@@ -170,7 +166,8 @@ class Test implements AdapterInterface
      *
      */
     public function close()
-    { }
+    {
+    }
 
     /**
      * Set the HTTP response(s) to be returned by this adapter
@@ -194,9 +191,9 @@ class Test implements AdapterInterface
      */
     public function addResponse($response)
     {
-         if ($response instanceof Response) {
+        if ($response instanceof Response) {
             $response = $response->toString();
-         }
+        }
 
         $this->responses[] = $response;
     }
@@ -205,7 +202,7 @@ class Test implements AdapterInterface
      * Sets the position of the response buffer.  Selects which
      * response will be returned on the next call to read().
      *
-     * @param integer $index
+     * @param int $index
      * @throws Exception\OutOfRangeException
      */
     public function setResponseIndex($index)

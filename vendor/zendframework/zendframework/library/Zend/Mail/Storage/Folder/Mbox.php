@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Storage\Folder;
@@ -14,11 +13,6 @@ use Zend\Mail\Storage;
 use Zend\Mail\Storage\Exception;
 use Zend\Stdlib\ErrorHandler;
 
-/**
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Storage
- */
 class Mbox extends Storage\Mbox implements FolderInterface
 {
     /**
@@ -54,7 +48,7 @@ class Mbox extends Storage\Mbox implements FolderInterface
     public function __construct($params)
     {
         if (is_array($params)) {
-            $params = (object)$params;
+            $params = (object) $params;
         }
 
         if (isset($params->filename)) {
@@ -160,7 +154,7 @@ class Mbox extends Storage\Mbox implements FolderInterface
      */
     public function selectFolder($globalName)
     {
-        $this->currentFolder = (string)$globalName;
+        $this->currentFolder = (string) $globalName;
 
         // getting folder from folder tree for validation
         $folder = $this->getFolders($this->currentFolder);
@@ -174,8 +168,11 @@ class Mbox extends Storage\Mbox implements FolderInterface
             }
             // seems like file has vanished; rebuilding folder tree - but it's still an exception
             $this->_buildFolderTree($this->rootdir);
-            throw new Exception\RuntimeException('seems like the mbox file has vanished, I\'ve rebuild the ' .
-                                                         'folder tree, search for an other folder and try again', 0, $e);
+            throw new Exception\RuntimeException(
+                'seems like the mbox file has vanished, I\'ve rebuild the folder tree, search for an other folder and try again',
+                0,
+                $e
+            );
         }
     }
 

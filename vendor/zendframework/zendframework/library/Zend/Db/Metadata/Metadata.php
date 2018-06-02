@@ -3,21 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Metadata;
 
 use Zend\Db\Adapter\Adapter;
-use Zend\Db\Adapter\Driver;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Metadata
- */
 class Metadata implements MetadataInterface
 {
     /**
@@ -60,6 +53,8 @@ class Metadata implements MetadataInterface
                 return new Source\SqliteMetadata($adapter);
             case 'PostgreSQL':
                 return new Source\PostgresqlMetadata($adapter);
+            case 'Oracle':
+                return new Source\OracleMetadata($adapter);
         }
 
         throw new \Exception('cannot create source from adapter');
@@ -191,7 +186,7 @@ class Metadata implements MetadataInterface
      */
     public function getViewNames($schema = null)
     {
-        return $this->source->getTable($schema);
+        return $this->source->getViewNames($schema);
     }
 
     /**
@@ -253,5 +248,4 @@ class Metadata implements MetadataInterface
     {
         return $this->source->getColumn($columnName, $table, $schema);
     }
-
 }

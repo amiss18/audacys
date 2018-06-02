@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Log
  */
 
 namespace Zend\Log\Writer;
@@ -14,6 +13,7 @@ use Traversable;
 use Zend\Log\Exception;
 use Zend\Log\Formatter\Simple as SimpleFormatter;
 use Zend\Mail\Message as MailMessage;
+use Zend\Mail\MessageFactory as MailMessageFactory;
 use Zend\Mail\Transport;
 use Zend\Mail\Transport\Exception as TransportException;
 
@@ -25,10 +25,6 @@ use Zend\Mail\Transport\Exception as TransportException;
  * completion, so any log entries accumulated are sent in a single email.
  * The email is sent using a Zend\Mail\Transport\TransportInterface object
  * (Sendmail is default).
- *
- * @category   Zend
- * @package    Zend_Log
- * @subpackage Writer
  */
 class Mail extends AbstractWriter
 {
@@ -85,8 +81,15 @@ class Mail extends AbstractWriter
         }
 
         if (is_array($mail)) {
+            parent::__construct($mail);
+            if (isset($mail['subject_prepend_text'])) {
+                $this->setSubjectPrependText($mail['subject_prepend_text']);
+            }
             $transport = isset($mail['transport']) ? $mail['transport'] : null;
             $mail      = isset($mail['mail']) ? $mail['mail'] : null;
+            if (is_array($mail)) {
+                $mail = MailMessageFactory::getInstance($mail);
+            }
         }
 
         // Ensure we have a valid mail message
@@ -110,7 +113,9 @@ class Mail extends AbstractWriter
         }
         $this->setTransport($transport);
 
-        $this->formatter = new SimpleFormatter();
+        if ($this->formatter === null) {
+            $this->formatter = new SimpleFormatter();
+        }
     }
 
     /**
@@ -191,10 +196,11 @@ class Mail extends AbstractWriter
         } catch (TransportException\ExceptionInterface $e) {
             trigger_error(
                 "unable to send log entries via email; " .
-                    "message = {$e->getMessage()}; " .
-                    "code = {$e->getCode()}; " .
-                        "exception class = " . get_class($e),
-                E_USER_WARNING);
+                "message = {$e->getMessage()}; " .
+                "code = {$e->getCode()}; " .
+                "exception class = " . get_class($e),
+                E_USER_WARNING
+            );
         }
     }
 

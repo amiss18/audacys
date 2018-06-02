@@ -3,18 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Uri
  */
 
 namespace Zend\Uri;
 
 /**
  * HTTP URI handler
- *
- * @category  Zend
- * @package   Zend_Uri
  */
 class Http extends Uri
 {
@@ -37,7 +33,7 @@ class Http extends Uri
     /**
      * @see Uri::$validHostTypes
      */
-    protected $validHostTypes = self::HOST_DNS_OR_IPV4_OR_IPV6;
+    protected $validHostTypes = self::HOST_DNS_OR_IPV4_OR_IPV6_OR_REGNAME;
 
     /**
      * User name as provided in authority of URI
@@ -52,58 +48,48 @@ class Http extends Uri
     protected $password;
 
     /**
-     * Check if the URI is a valid HTTP URI
-     *
-     * This applies additional HTTP specific validation rules beyond the ones
-     * required by the generic URI syntax
-     *
-     * @return boolean
-     * @see    Uri::isValid()
-     */
-    public function isValid()
-    {
-        return parent::isValid();
-    }
-
-    /**
      * Get the username part (before the ':') of the userInfo URI part
      *
-     * @return null|string
+     * @return string|null
      */
     public function getUser()
     {
-        if (null !== $this->user) {
-            return $this->user;
-        }
-
-        $this->parseUserInfo();
         return $this->user;
     }
 
     /**
      * Get the password part (after the ':') of the userInfo URI part
      *
-     * @return string
+     * @return string|null
      */
     public function getPassword()
     {
-        if (null !== $this->password) {
-            return $this->password;
-        }
-
-        $this->parseUserInfo();
         return $this->password;
+    }
+
+    /**
+     * Get the User-info (usually user:password) part
+     *
+     * @return string|null
+     */
+    public function getUserInfo()
+    {
+        return $this->userInfo;
     }
 
     /**
      * Set the username part (before the ':') of the userInfo URI part
      *
-     * @param  string $user
-     * @return Http
+     * @param string|null $user
+     *
+     * @return self
      */
     public function setUser($user)
     {
-        $this->user = $user;
+        $this->user = null === $user ? null : (string) $user;
+
+        $this->buildUserInfo();
+
         return $this;
     }
 
@@ -111,11 +97,33 @@ class Http extends Uri
      * Set the password part (after the ':') of the userInfo URI part
      *
      * @param  string $password
-     * @return Http
+     *
+     * @return self
      */
     public function setPassword($password)
     {
-        $this->password = $password;
+        $this->password = null === $password ? null : (string) $password;
+
+        $this->buildUserInfo();
+
+        return $this;
+    }
+
+    /**
+     * Set the URI User-info part (usually user:password)
+     *
+     * @param  string|null $userInfo
+     *
+     * @return self
+     *
+     * @throws Exception\InvalidUriPartException If the schema definition does not have this part
+     */
+    public function setUserInfo($userInfo)
+    {
+        $this->userInfo = null === $userInfo ? null : (string) $userInfo;
+
+        $this->parseUserInfo();
+
         return $this;
     }
 
@@ -126,8 +134,8 @@ class Http extends Uri
      * default. Users may still enforce allowing other host types.
      *
      * @param  string  $host
-     * @param  integer $allowed
-     * @return boolean
+     * @param  int $allowed
+     * @return bool
      */
     public static function validateHost($host, $allowed = self::HOST_DNS_OR_IPV4_OR_IPV6)
     {
@@ -146,19 +154,37 @@ class Http extends Uri
     {
         // No user information? we're done
         if (null === $this->userInfo) {
+            $this->setUser(null);
+            $this->setPassword(null);
+
             return;
         }
 
         // If no ':' separator, we only have a username
         if (false === strpos($this->userInfo, ':')) {
             $this->setUser($this->userInfo);
+            $this->setPassword(null);
             return;
         }
 
         // Split on the ':', and set both user and password
-        list($user, $password) = explode(':', $this->userInfo, 2);
-        $this->setUser($user);
-        $this->setPassword($password);
+        list($this->user, $this->password) = explode(':', $this->userInfo, 2);
+    }
+
+    /**
+     * Build the user info based on user and password
+     *
+     * Builds the user info based on the given user and password values
+     *
+     * @return void
+     */
+    protected function buildUserInfo()
+    {
+        if (null !== $this->password) {
+            $this->userInfo = $this->user . ':' . $this->password;
+        } else {
+            $this->userInfo = $this->user;
+        }
     }
 
     /**
@@ -166,14 +192,14 @@ class Http extends Uri
      *
      * If no port is set, will return the default port according to the scheme
      *
-     * @return integer
+     * @return int
      * @see    Zend\Uri\Uri::getPort()
      */
     public function getPort()
     {
         if (empty($this->port)) {
-            if (array_key_exists($this->scheme, self::$defaultPorts)) {
-                return self::$defaultPorts[$this->scheme];
+            if (array_key_exists($this->scheme, static::$defaultPorts)) {
+                return static::$defaultPorts[$this->scheme];
             }
         }
         return $this->port;

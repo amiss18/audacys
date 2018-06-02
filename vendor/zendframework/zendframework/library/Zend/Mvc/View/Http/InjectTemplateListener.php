@@ -3,21 +3,20 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mvc
  */
 
 namespace Zend\Mvc\View\Http;
 
+use Zend\EventManager\AbstractListenerAggregate;
 use Zend\EventManager\EventManagerInterface as Events;
-use Zend\EventManager\ListenerAggregateInterface;
 use Zend\Filter\Word\CamelCaseToDash as CamelCaseToDashFilter;
 use Zend\Mvc\MvcEvent;
-use Zend\Mvc\Router\RouteMatch;
+use Zend\Mvc\ModuleRouteListener;
 use Zend\View\Model\ModelInterface as ViewModel;
 
-class InjectTemplateListener implements ListenerAggregateInterface
+class InjectTemplateListener extends AbstractListenerAggregate
 {
     /**
      * FilterInterface/inflector used to normalize names for use as template identifiers
@@ -27,36 +26,25 @@ class InjectTemplateListener implements ListenerAggregateInterface
     protected $inflector;
 
     /**
-     * Listeners we've registered
+     * Array of controller namespace -> template mappings
      *
      * @var array
      */
-    protected $listeners = array();
+    protected $controllerMap = array();
 
     /**
-     * Attach listeners
+     * Flag to force the use of the route match controller param
      *
-     * @param  Events $events
-     * @return void
+     * @var boolean
+     */
+    protected $preferRouteMatchController = false;
+
+    /**
+     * {@inheritDoc}
      */
     public function attach(Events $events)
     {
         $this->listeners[] = $events->attach(MvcEvent::EVENT_DISPATCH, array($this, 'injectTemplate'), -90);
-    }
-
-    /**
-     * Detach listeners
-     *
-     * @param  Events $events
-     * @return void
-     */
-    public function detach(Events $events)
-    {
-        foreach ($this->listeners as $index => $listener) {
-            if ($events->detach($listener)) {
-                unset($this->listeners[$index]);
-            }
-        }
     }
 
     /**
@@ -85,24 +73,100 @@ class InjectTemplateListener implements ListenerAggregateInterface
         if (is_object($controller)) {
             $controller = get_class($controller);
         }
-        if (!$controller) {
-            $controller = $routeMatch->getParam('controller', '');
+
+        $routeMatchController = $routeMatch->getParam('controller', '');
+        if (!$controller || ($this->preferRouteMatchController && $routeMatchController)) {
+            $controller = $routeMatchController;
         }
 
-        $module     = $this->deriveModuleNamespace($controller);
-        $controller = $this->deriveControllerClass($controller);
+        $template = $this->mapController($controller);
+        if (!$template) {
+            $module     = $this->deriveModuleNamespace($controller);
 
-        $template   = $this->inflectName($module);
-        if (!empty($template)) {
-            $template .= '/';
+            if ($namespace = $routeMatch->getParam(ModuleRouteListener::MODULE_NAMESPACE)) {
+                $controllerSubNs = $this->deriveControllerSubNamespace($namespace);
+                if (!empty($controllerSubNs)) {
+                    if (!empty($module)) {
+                        $module .= '/' . $controllerSubNs;
+                    } else {
+                        $module = $controllerSubNs;
+                    }
+                }
+            }
+
+            $controller = $this->deriveControllerClass($controller);
+            $template   = $this->inflectName($module);
+
+            if (!empty($template)) {
+                $template .= '/';
+            }
+            $template  .= $this->inflectName($controller);
         }
-        $template  .= $this->inflectName($controller);
 
         $action     = $routeMatch->getParam('action');
         if (null !== $action) {
             $template .= '/' . $this->inflectName($action);
         }
         $model->setTemplate($template);
+    }
+
+    /**
+     * Set map of controller namespace -> template pairs
+     *
+     * @param  array $map
+     * @return self
+     */
+    public function setControllerMap(array $map)
+    {
+        krsort($map);
+        $this->controllerMap = $map;
+        return $this;
+    }
+
+    /**
+     * Maps controller to template if controller namespace is whitelisted or mapped
+     *
+     * @param string $controller controller FQCN
+     * @return string|false template name or false if controller was not matched
+     */
+    public function mapController($controller)
+    {
+        if (! is_string($controller)) {
+            return false;
+        }
+
+        foreach ($this->controllerMap as $namespace => $replacement) {
+            if (
+                // Allow disabling rule by setting value to false since config
+                // merging have no feature to remove entries
+                false == $replacement
+                // Match full class or full namespace
+                || !($controller === $namespace || strpos($controller, $namespace . '\\') === 0)
+            ) {
+                continue;
+            }
+
+            $map = '';
+            // Map namespace to $replacement if its value is string
+            if (is_string($replacement)) {
+                $map = rtrim($replacement, '/') . '/';
+                $controller = substr($controller, strlen($namespace) + 1) ?: '';
+            }
+
+            //strip Controller namespace(s) (but not classname)
+            $parts = explode('\\', $controller);
+            array_pop($parts);
+            $parts = array_diff($parts, array('Controller'));
+            //strip trailing Controller in class name
+            $parts[] = $this->deriveControllerClass($controller);
+            $controller = implode('/', $parts);
+
+            $template = trim($map . $controller, '/');
+
+            //inflect CamelCase to dash
+            return $this->inflectName($template);
+        }
+        return false;
     }
 
     /**
@@ -136,6 +200,25 @@ class InjectTemplateListener implements ListenerAggregateInterface
     }
 
     /**
+     * @param $namespace
+     * @return string
+     */
+    protected function deriveControllerSubNamespace($namespace)
+    {
+        if (!strstr($namespace, '\\')) {
+            return '';
+        }
+        $nsArray = explode('\\', $namespace);
+
+        // Remove the first two elements representing the module and controller directory.
+        $subNsArray = array_slice($nsArray, 2);
+        if (empty($subNsArray)) {
+            return '';
+        }
+        return implode('/', $subNsArray);
+    }
+
+    /**
      * Determine the name of the controller
      *
      * Strip the namespace, and the suffix "Controller" if present.
@@ -156,5 +239,24 @@ class InjectTemplateListener implements ListenerAggregateInterface
         }
 
         return $controller;
+    }
+
+    /**
+     * Sets the flag to instruct the listener to prefer the route match controller param
+     * over the class name
+     *
+     * @param boolean $preferRouteMatchController
+     */
+    public function setPreferRouteMatchController($preferRouteMatchController)
+    {
+        $this->preferRouteMatchController = (bool) $preferRouteMatchController;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function isPreferRouteMatchController()
+    {
+        return $this->preferRouteMatchController;
     }
 }

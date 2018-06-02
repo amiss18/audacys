@@ -3,16 +3,15 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Stdlib
  */
 
 namespace Zend\Stdlib;
 
-use ArrayObject;
+use ArrayObject as PhpArrayObject;
 
-class Parameters extends ArrayObject implements ParametersInterface
+class Parameters extends PhpArrayObject implements ParametersInterface
 {
     /**
      * Constructor
@@ -84,10 +83,10 @@ class Parameters extends ArrayObject implements ParametersInterface
      */
     public function offsetGet($name)
     {
-        if (isset($this[$name])) {
+        if ($this->offsetExists($name)) {
             return parent::offsetGet($name);
         }
-        return null;
+        return;
     }
 
     /**
@@ -97,7 +96,7 @@ class Parameters extends ArrayObject implements ParametersInterface
      */
     public function get($name, $default = null)
     {
-        if (isset($this[$name])) {
+        if ($this->offsetExists($name)) {
             return parent::offsetGet($name);
         }
         return $default;
@@ -106,7 +105,7 @@ class Parameters extends ArrayObject implements ParametersInterface
     /**
      * @param string $name
      * @param mixed $value
-     * @return $this
+     * @return Parameters
      */
     public function set($name, $value)
     {

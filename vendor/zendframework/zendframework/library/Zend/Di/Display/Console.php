@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Di
  */
 
 namespace Zend\Di\Display;
@@ -14,13 +13,9 @@ use Zend\Di\Di;
 
 /**
  * Exporter for class definitions
- *
- * @category   Zend
- * @package    Zend_Di
  */
 class Console
 {
-
     /**
      * @var Di
      */
@@ -75,7 +70,6 @@ class Console
 
     public function render()
     {
-
         $knownClasses = array();
 
         echo 'Definitions' . PHP_EOL . PHP_EOL;
@@ -91,8 +85,9 @@ class Console
             }
         }
 
-        if ($this->runtimeClasses)
-        echo '  Runtime classes:' . PHP_EOL;
+        if ($this->runtimeClasses) {
+            echo '  Runtime classes:' . PHP_EOL;
+        }
 
         $unknownRuntimeClasses = array_diff($this->runtimeClasses, $knownClasses);
         foreach ($unknownRuntimeClasses as $runtimeClass) {
@@ -137,7 +132,6 @@ class Console
                 }
             }
         }
-
     }
 
     /**
@@ -170,8 +164,8 @@ class Console
         foreach ($definition->getMethods($class) as $methodName => $methodIsRequired) {
             foreach ($definition->getMethodParameters($class, $methodName) as $fqName => $pData) {
                 echo '      ' . $pData[0] . ' [type: ';
-                echo ($pData[1]) ? $pData[1] : 'scalar';
-                echo ($pData[2] === true && $methodIsRequired) ? ', required' : ', not required';
+                echo($pData[1]) ? $pData[1] : 'scalar';
+                echo($pData[2] === true && $methodIsRequired) ? ', required' : ', not required';
                 echo ', injection-method: ' . $methodName;
                 echo ' fq-name: ' . $fqName;
                 echo ']' . PHP_EOL;
@@ -179,5 +173,4 @@ class Console
         }
         echo PHP_EOL;
     }
-
 }

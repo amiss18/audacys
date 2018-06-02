@@ -3,28 +3,24 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mvc
  */
 
 namespace Zend\Mvc\Controller;
 
+use Zend\Http\Response as HttpResponse;
 use Zend\Mvc\Exception;
 use Zend\Mvc\MvcEvent;
 use Zend\View\Model\ViewModel;
 
 /**
  * Basic action controller
- *
- * @category   Zend
- * @package    Zend_Mvc
- * @subpackage Controller
  */
 abstract class AbstractActionController extends AbstractController
 {
     /**
-     * @var string
+     * {@inheritDoc}
      */
     protected $eventIdentifier = __CLASS__;
 
@@ -50,13 +46,12 @@ abstract class AbstractActionController extends AbstractController
         $response   = $this->response;
         $event      = $this->getEvent();
         $routeMatch = $event->getRouteMatch();
-
-        $response->setStatusCode(404);
         $routeMatch->setParam('action', 'not-found');
 
-        return new ViewModel(array(
-            'content' => 'Page not found'
-        ));
+        if ($response instanceof HttpResponse) {
+            return $this->createHttpNotFoundModel($response);
+        }
+        return $this->createConsoleNotFoundModel($response);
     }
 
     /**
@@ -89,5 +84,27 @@ abstract class AbstractActionController extends AbstractController
         $e->setResult($actionResponse);
 
         return $actionResponse;
+    }
+
+    /**
+     * @deprecated please use the {@see \Zend\Mvc\Controller\Plugin\CreateHttpNotFoundModel} plugin instead: this
+     *             method will be removed in release 2.5 or later.
+     *
+     * {@inheritDoc}
+     */
+    protected function createHttpNotFoundModel(HttpResponse $response)
+    {
+        return $this->__call('createHttpNotFoundModel', array($response));
+    }
+
+    /**
+     * @deprecated please use the {@see \Zend\Mvc\Controller\Plugin\CreateConsoleNotFoundModel} plugin instead: this
+     *             method will be removed in release 2.5 or later.
+     *
+     * {@inheritDoc}
+     */
+    protected function createConsoleNotFoundModel($response)
+    {
+        return $this->__call('createConsoleNotFoundModel', array($response));
     }
 }

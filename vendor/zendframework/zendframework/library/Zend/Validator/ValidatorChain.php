@@ -3,23 +3,24 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Validator
  */
 
 namespace Zend\Validator;
 
 use Countable;
+use Zend\Stdlib\PriorityQueue;
 
-/**
- * @category   Zend
- * @package    Zend_Validator
- */
 class ValidatorChain implements
     Countable,
     ValidatorInterface
 {
+    /**
+     * Default priority at which validators are added
+     */
+    const DEFAULT_PRIORITY = 1;
+
     /**
      * @var ValidatorPluginManager
      */
@@ -28,9 +29,9 @@ class ValidatorChain implements
     /**
      * Validator chain
      *
-     * @var array
+     * @var PriorityQueue
      */
-    protected $validators = array();
+    protected $validators;
 
     /**
      * Array of validation failure messages
@@ -38,6 +39,14 @@ class ValidatorChain implements
      * @var array
      */
     protected $messages = array();
+
+    /**
+     * Initialize validator chain
+     */
+    public function __construct()
+    {
+        $this->validators = new PriorityQueue();
+    }
 
     /**
      * Return the count of attached validators
@@ -88,22 +97,48 @@ class ValidatorChain implements
     }
 
     /**
-     * Adds a validator to the end of the chain
+     * Attach a validator to the end of the chain
      *
      * If $breakChainOnFailure is true, then if the validator fails, the next validator in the chain,
      * if one exists, will not be executed.
      *
+     * @param  ValidatorInterface $validator
+     * @param  bool               $breakChainOnFailure
+     * @param  int                $priority            Priority at which to enqueue validator; defaults to
+     *                                                          1 (higher executes earlier)
+     *
+     * @throws Exception\InvalidArgumentException
+     *
+     * @return self
+     */
+    public function attach(
+        ValidatorInterface $validator,
+        $breakChainOnFailure = false,
+        $priority = self::DEFAULT_PRIORITY
+    ) {
+        $this->validators->insert(
+            array(
+                'instance'            => $validator,
+                'breakChainOnFailure' => (bool) $breakChainOnFailure,
+            ),
+            $priority
+        );
+
+        return $this;
+    }
+
+    /**
+     * Proxy to attach() to keep BC
+     *
+     * @deprecated Please use attach()
      * @param  ValidatorInterface      $validator
-     * @param  boolean                 $breakChainOnFailure
+     * @param  bool                 $breakChainOnFailure
+     * @param  int                  $priority
      * @return ValidatorChain Provides a fluent interface
      */
-    public function addValidator(ValidatorInterface $validator, $breakChainOnFailure = false)
+    public function addValidator(ValidatorInterface $validator, $breakChainOnFailure = false, $priority = self::DEFAULT_PRIORITY)
     {
-        $this->validators[] = array(
-            'instance'            => $validator,
-            'breakChainOnFailure' => (boolean)$breakChainOnFailure
-        );
-        return $this;
+        return $this->attach($validator, $breakChainOnFailure, $priority);
     }
 
     /**
@@ -113,16 +148,26 @@ class ValidatorChain implements
      * if one exists, will not be executed.
      *
      * @param  ValidatorInterface      $validator
-     * @param  boolean                 $breakChainOnFailure
+     * @param  bool                 $breakChainOnFailure
      * @return ValidatorChain Provides a fluent interface
      */
     public function prependValidator(ValidatorInterface $validator, $breakChainOnFailure = false)
     {
-        array_unshift($this->validators,
-                      array(
-                           'instance'            => $validator,
-                           'breakChainOnFailure' => (boolean)$breakChainOnFailure
-                      )
+        $priority = self::DEFAULT_PRIORITY;
+
+        if (!$this->validators->isEmpty()) {
+            $queue = $this->validators->getIterator();
+            $queue->setExtractFlags(PriorityQueue::EXTR_PRIORITY);
+            $extractedNode = $queue->extract();
+            $priority = $extractedNode[0] + 1;
+        }
+
+        $this->validators->insert(
+            array(
+                'instance'            => $validator,
+                'breakChainOnFailure' => (bool) $breakChainOnFailure,
+            ),
+            $priority
         );
         return $this;
     }
@@ -131,15 +176,38 @@ class ValidatorChain implements
      * Use the plugin manager to add a validator by name
      *
      * @param  string $name
+     * @param  array $options
+     * @param  bool $breakChainOnFailure
+     * @param  int $priority
+     * @return ValidatorChain
+     */
+    public function attachByName($name, $options = array(), $breakChainOnFailure = false, $priority = self::DEFAULT_PRIORITY)
+    {
+        if (isset($options['break_chain_on_failure'])) {
+            $breakChainOnFailure = (bool) $options['break_chain_on_failure'];
+        }
+
+        if (isset($options['breakchainonfailure'])) {
+            $breakChainOnFailure = (bool) $options['breakchainonfailure'];
+        }
+
+        $this->attach($this->plugin($name, $options), $breakChainOnFailure, $priority);
+
+        return $this;
+    }
+
+    /**
+     * Proxy to attachByName() to keep BC
+     *
+     * @deprecated Please use attachByName()
+     * @param  string $name
      * @param  array  $options
      * @param  bool   $breakChainOnFailure
      * @return ValidatorChain
      */
     public function addByName($name, $options = array(), $breakChainOnFailure = false)
     {
-        $validator = $this->plugin($name, $options);
-        $this->addValidator($validator, $breakChainOnFailure);
-        return $this;
+        return $this->attachByName($name, $options, $breakChainOnFailure);
     }
 
     /**
@@ -164,7 +232,7 @@ class ValidatorChain implements
      *
      * @param  mixed $value
      * @param  mixed $context Extra "context" to provide the validator
-     * @return boolean
+     * @return bool
      */
     public function isValid($value, $context = null)
     {
@@ -193,8 +261,8 @@ class ValidatorChain implements
      */
     public function merge(ValidatorChain $validatorChain)
     {
-        foreach ($validatorChain->validators as $validator) {
-            $this->validators[] = $validator;
+        foreach ($validatorChain->validators->toArray(PriorityQueue::EXTR_BOTH) as $item) {
+            $this->attach($item['data']['instance'], $item['data']['breakChainOnFailure'], $item['priority']);
         }
 
         return $this;
@@ -213,18 +281,18 @@ class ValidatorChain implements
     /**
      * Get all the validators
      *
-     * @return array
+     * @return PriorityQueue
      */
     public function getValidators()
     {
-        return $this->validators;
+        return $this->validators->toArray(PriorityQueue::EXTR_DATA);
     }
 
     /**
      * Invoke chain as command
      *
      * @param  mixed $value
-     * @return boolean
+     * @return bool
      */
     public function __invoke($value)
     {
@@ -232,17 +300,25 @@ class ValidatorChain implements
     }
 
     /**
+     * Deep clone handling
+     */
+    public function __clone()
+    {
+        $this->validators = clone $this->validators;
+    }
+
+    /**
      * Prepare validator chain for serialization
      *
      * Plugin manager (property 'plugins') cannot
      * be serialized. On wakeup the property remains unset
-     * and next invokation to getPluginManager() sets
+     * and next invocation to getPluginManager() sets
      * the default plugin manager instance (ValidatorPluginManager).
      *
      * @return array
      */
     public function __sleep()
     {
-        return array('validators','messages');
+        return array('validators', 'messages');
     }
 }

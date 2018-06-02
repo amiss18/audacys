@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Reader\Extension\Podcast;
@@ -14,8 +13,6 @@ use DOMText;
 use Zend\Feed\Reader\Extension;
 
 /**
-* @category Zend
-* @package Zend_Feed_Reader
 */
 class Feed extends Extension\AbstractFeed
 {
@@ -66,7 +63,7 @@ class Feed extends Extension\AbstractFeed
     /**
      * Get the entry category
      *
-     * @return string
+     * @return array|null
      */
     public function getItunesCategories()
     {
@@ -95,7 +92,6 @@ class Feed extends Extension\AbstractFeed
                 $categories[$node->getAttribute('text')] = $children;
             }
         }
-
 
         if (!$categories) {
             $categories = null;

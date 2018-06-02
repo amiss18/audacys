@@ -3,24 +3,20 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_I18n
  */
 
 namespace Zend\I18n\Validator;
 
 use Locale;
 use Traversable;
+use Zend\I18n\Exception as I18nException;
 use Zend\Stdlib\ArrayUtils;
 use Zend\Validator\AbstractValidator;
 use Zend\Validator\Callback;
 use Zend\Validator\Exception;
 
-/**
- * @category   Zend
- * @package    Zend_Validate
- */
 class PostCode extends AbstractValidator
 {
     const INVALID        = 'postcodeInvalid';
@@ -65,7 +61,7 @@ class PostCode extends AbstractValidator
      * @var array
      */
     protected static $postCodeRegex = array(
-        'GB' => 'GIR[ ]?0AA|((AB|AL|B|BA|BB|BD|BH|BL|BN|BR|BS|BT|CA|CB|CF|CH|CM|CO|CR|CT|CV|CW|DA|DD|DE|DG|DH|DL|DN|DT|DY|E|EC|EH|EN|EX|FK|FY|G|GL|GY|GU|HA|HD|HG|HP|HR|HS|HU|HX|IG|IM|IP|IV|JE|KA|KT|KW|KY|L|LA|LD|LE|LL|LN|LS|LU|M|ME|MK|ML|N|NE|NG|NN|NP|NR|NW|OL|OX|PA|PE|PH|PL|PO|PR|RG|RH|RM|S|SA|SE|SG|SK|SL|SM|SN|SO|SP|SR|SS|ST|SW|SY|TA|TD|TF|TN|TQ|TR|TS|TW|UB|W|WA|WC|WD|WF|WN|WR|WS|WV|YO|ZE)(\d[\dA-Z]?[ ]?\d[ABD-HJLN-UW-Z]{2}))|BFPO[ ]?\d{1,4}',
+        'GB' => 'GIR[ ]?0AA|^((AB|AL|B|BA|BB|BD|BH|BL|BN|BR|BS|BT|CA|CB|CF|CH|CM|CO|CR|CT|CV|CW|DA|DD|DE|DG|DH|DL|DN|DT|DY|E|EC|EH|EN|EX|FK|FY|G|GL|GY|GU|HA|HD|HG|HP|HR|HS|HU|HX|IG|IM|IP|IV|JE|KA|KT|KW|KY|L|LA|LD|LE|LL|LN|LS|LU|M|ME|MK|ML|N|NE|NG|NN|NP|NR|NW|OL|OX|PA|PE|PH|PL|PO|PR|RG|RH|RM|S|SA|SE|SG|SK|SL|SM|SN|SO|SP|SR|SS|ST|SW|SY|TA|TD|TF|TN|TQ|TR|TS|TW|UB|W|WA|WC|WD|WF|WN|WR|WS|WV|YO|ZE)(\d[\dA-Z]?[ ]?\d[ABD-HJLN-UW-Z]{2}))$|^BFPO[ ]?\d{1,4}',
         'JE' => 'JE\d[\dA-Z]?[ ]?\d[ABD-HJLN-UW-Z]{2}',
         'GG' => 'GY\d[\dA-Z]?[ ]?\d[ABD-HJLN-UW-Z]{2}',
         'IM' => 'IM\d[\dA-Z]?[ ]?\d[ABD-HJLN-UW-Z]{2}',
@@ -73,7 +69,7 @@ class PostCode extends AbstractValidator
         'CA' => '[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJ-NPRSTV-Z][ ]?\d[ABCEGHJ-NPRSTV-Z]\d',
         'DE' => '\d{5}',
         'JP' => '\d{3}-\d{4}',
-        'FR' => '\d{2}[ ]?\d{3}',
+        'FR' => '(?!(0{2})|(9(6|9))[ ]?\d{3})(\d{2}[ ]?\d{3})',
         'AU' => '\d{4}',
         'IT' => '\d{5}',
         'CH' => '\d{4}',
@@ -83,7 +79,7 @@ class PostCode extends AbstractValidator
         'BE' => '\d{4}',
         'DK' => '\d{4}',
         'SE' => '\d{3}[ ]?\d{2}',
-        'NO' => '\d{4}',
+        'NO' => '(?!0000)\d{4}',
         'BR' => '\d{5}[\-]?\d{3}',
         'PT' => '\d{4}([\-]\d{3})?',
         'FI' => '\d{5}',
@@ -231,9 +227,17 @@ class PostCode extends AbstractValidator
      * Accepts a string locale and/or "format".
      *
      * @param  array|Traversable $options
+     * @throws Exception\ExtensionNotLoadedException if ext/intl is not present
      */
     public function __construct($options = array())
     {
+        if (!extension_loaded('intl')) {
+            throw new I18nException\ExtensionNotLoadedException(sprintf(
+                '%s component requires the intl PHP extension',
+                __NAMESPACE__
+            ));
+        }
+
         if ($options instanceof Traversable) {
             $options = ArrayUtils::iteratorToArray($options);
         }
@@ -323,7 +327,7 @@ class PostCode extends AbstractValidator
      * Returns true if and only if $value is a valid postalcode
      *
      * @param  string $value
-     * @return boolean
+     * @return bool
      * @throws Exception\InvalidArgumentException
      */
     public function isValid($value)
@@ -343,8 +347,8 @@ class PostCode extends AbstractValidator
             if ('' === $region) {
                 throw new Exception\InvalidArgumentException("Locale must contain a region");
             }
-            if (isset(self::$postCodeRegex[$region])) {
-                $format = self::$postCodeRegex[$region];
+            if (isset(static::$postCodeRegex[$region])) {
+                $format = static::$postCodeRegex[$region];
             }
         }
         if (null === $format || '' === $format) {

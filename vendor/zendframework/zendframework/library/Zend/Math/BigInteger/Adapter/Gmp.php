@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Math
  */
 
 namespace Zend\Math\BigInteger\Adapter;
@@ -14,10 +13,6 @@ use Zend\Math\BigInteger\Exception;
 
 /**
  * GMP extension adapter
- *
- * @category   Zend
- * @package    Zend_Math
- * @subpackage BigInteger
  */
 class Gmp implements AdapterInterface
 {
@@ -25,7 +20,7 @@ class Gmp implements AdapterInterface
      * Create string representing big integer in decimal form from arbitrary integer format
      *
      * @param  string $operand
-     * @param  integer|null $base
+     * @param  int|null $base
      * @return bool|string
      */
     public function init($operand, $base = null)
@@ -50,7 +45,9 @@ class Gmp implements AdapterInterface
             }
         }
 
+        set_error_handler(function () { /* Do nothing */}, \E_WARNING);
         $res = gmp_init($sign . $operand, $base);
+        restore_error_handler();
         if ($res === false) {
             return false;
         }
@@ -206,7 +203,7 @@ class Gmp implements AdapterInterface
     public function intToBin($int, $twoc = false)
     {
         $nb         = chr(0);
-        $isNegative = (strpos($int, '-') === 0) ? true : false;
+        $isNegative = (strpos($int, '-') === 0);
         $int        = ltrim($int, '+-0');
 
         if (empty($int)) {
@@ -230,9 +227,9 @@ class Gmp implements AdapterInterface
                 $bytes = $nb . $bytes;
             }
             return $isNegative ? ~$bytes : $bytes;
-        } else {
-            return $bytes;
         }
+
+        return $bytes;
     }
 
     /**
@@ -297,7 +294,7 @@ class Gmp implements AdapterInterface
         $chars = self::BASE62_ALPHABET;
 
         // convert operand to decimal
-        if ($fromBase !== 10 ) {
+        if ($fromBase !== 10) {
             $decimal = '0';
             for ($i = 0, $len = strlen($operand); $i < $len; $i++) {
                 $decimal = gmp_mul($decimal, $fromBase);

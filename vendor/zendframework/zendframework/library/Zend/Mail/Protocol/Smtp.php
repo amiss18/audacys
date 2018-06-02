@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Protocol;
@@ -14,10 +13,6 @@ namespace Zend\Mail\Protocol;
  * SMTP implementation of Zend\Mail\Protocol\AbstractProtocol
  *
  * Minimum implementation according to RFC2821: EHLO, MAIL FROM, RCPT TO, DATA, RSET, NOOP, QUIT
- *
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Protocol
  */
 class Smtp extends AbstractProtocol
 {
@@ -28,7 +23,6 @@ class Smtp extends AbstractProtocol
      */
     protected $transport = 'tcp';
 
-
     /**
      * Indicates that a session is requested to be secure
      *
@@ -36,54 +30,40 @@ class Smtp extends AbstractProtocol
      */
     protected $secure;
 
-
     /**
      * Indicates an smtp session has been started by the HELO command
      *
-     * @var boolean
+     * @var bool
      */
     protected $sess = false;
-
-
-    /**
-     * Indicates the HELO command has been issues
-     *
-     * @var boolean
-     */
-    protected $helo = false;
-
 
     /**
      * Indicates an smtp AUTH has been issued and authenticated
      *
-     * @var boolean
+     * @var bool
      */
     protected $auth = false;
-
 
     /**
      * Indicates a MAIL command has been issued
      *
-     * @var boolean
+     * @var bool
      */
     protected $mail = false;
-
 
     /**
      * Indicates one or more RCTP commands have been issued
      *
-     * @var boolean
+     * @var bool
      */
     protected $rcpt = false;
-
 
     /**
      * Indicates that DATA has been issued and sent
      *
-     * @var boolean
+     * @var bool
      */
     protected $data = null;
-
 
     /**
      * Constructor.
@@ -93,7 +73,7 @@ class Smtp extends AbstractProtocol
      * are present.
      *
      * @param  string|array $host
-     * @param  null|integer $port
+     * @param  null|int $port
      * @param  null|array   $config
      * @throws Exception\InvalidArgumentException
      */
@@ -137,19 +117,18 @@ class Smtp extends AbstractProtocol
                 case 'ssl':
                     $this->transport = 'ssl';
                     $this->secure = 'ssl';
-                    if ($port == null) {
+                    if ($port === null) {
                         $port = 465;
                     }
                     break;
 
                 default:
                     throw new Exception\InvalidArgumentException($config['ssl'] . ' is unsupported SSL type');
-                    break;
             }
         }
 
         // If no port has been specified then check the master PHP ini file. Defaults to 25 if the ini setting is null.
-        if ($port == null) {
+        if ($port === null) {
             if (($port = ini_get('smtp_port')) == '') {
                 $port = 25;
             }
@@ -162,7 +141,7 @@ class Smtp extends AbstractProtocol
     /**
      * Connect to the server with the parameters given in the constructor.
      *
-     * @return boolean
+     * @return bool
      */
     public function connect()
     {
@@ -206,6 +185,15 @@ class Smtp extends AbstractProtocol
         $this->auth();
     }
 
+    /**
+     * Returns the perceived session status
+     *
+     * @return bool
+     */
+    public function hasSession()
+    {
+        return $this->sess;
+    }
 
     /**
      * Send EHLO or HELO depending on capabilities of smtp host
@@ -258,7 +246,6 @@ class Smtp extends AbstractProtocol
      */
     public function rcpt($to)
     {
-
         if ($this->mail !== true) {
             throw new Exception\RuntimeException('No sender reverse path has been supplied');
         }
@@ -285,6 +272,9 @@ class Smtp extends AbstractProtocol
 
         $this->_send('DATA');
         $this->_expect(354, 120); // Timeout set for 2 minutes as per RFC 2821 4.5.3.2
+
+        // Ensure newlines are CRLF (\r\n)
+        $data = str_replace("\n", "\r\n", str_replace("\r", '', $data));
 
         foreach (explode(self::EOL, $data) as $line) {
             if (strpos($line, '.') === 0) {
@@ -317,11 +307,10 @@ class Smtp extends AbstractProtocol
         $this->data = false;
     }
 
-
     /**
      * Issues the NOOP command end validates answer
      *
-     * Not used by Zend_Mail, could be used to keep a connection alive or check if it is still open.
+     * Not used by Zend\Mail, could be used to keep a connection alive or check if it is still open.
      *
      */
     public function noop()
@@ -330,11 +319,10 @@ class Smtp extends AbstractProtocol
         $this->_expect(250, 300); // Timeout set for 5 minutes as per RFC 2821 4.5.3.2
     }
 
-
     /**
      * Issues the VRFY command end validates answer
      *
-     * Not used by Zend_Mail.
+     * Not used by Zend\Mail.
      *
      * @param  string $user User Name or eMail to verify
      */
@@ -344,7 +332,6 @@ class Smtp extends AbstractProtocol
         $this->_expect(array(250, 251, 252), 300); // Timeout set for 5 minutes as per RFC 2821 4.5.3.2
     }
 
-
     /**
      * Issues the QUIT command and clears the current session
      *
@@ -352,12 +339,12 @@ class Smtp extends AbstractProtocol
     public function quit()
     {
         if ($this->sess) {
+            $this->auth = false;
             $this->_send('QUIT');
             $this->_expect(221, 300); // Timeout set for 5 minutes as per RFC 2821 4.5.3.2
             $this->_stopSession();
         }
     }
-
 
     /**
      * Default authentication method
@@ -373,7 +360,6 @@ class Smtp extends AbstractProtocol
         }
     }
 
-
     /**
      * Closes connection
      *
@@ -383,6 +369,15 @@ class Smtp extends AbstractProtocol
         $this->_disconnect();
     }
 
+    /**
+     * Disconnect from remote host and free resource
+     */
+    protected function _disconnect()
+    {
+        // Make sure the session gets closed
+        $this->quit();
+        parent::_disconnect();
+    }
 
     /**
      * Start mail session
@@ -392,7 +387,6 @@ class Smtp extends AbstractProtocol
     {
         $this->sess = true;
     }
-
 
     /**
      * Stop mail session

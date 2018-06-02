@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Feed
  */
 
 namespace Zend\Feed\Reader\Extension\Atom;
@@ -17,12 +16,8 @@ use stdClass;
 use Zend\Feed\Reader;
 use Zend\Feed\Reader\Collection;
 use Zend\Feed\Reader\Extension;
-use Zend\Uri;
+use Zend\Feed\Uri;
 
-/**
-* @category Zend
-* @package Reader\Reader
-*/
 class Entry extends Extension\AbstractEntry
 {
     /**
@@ -39,13 +34,13 @@ class Entry extends Extension\AbstractEntry
             return $authors[$index];
         }
 
-        return null;
+        return;
     }
 
     /**
      * Get an array with feed authors
      *
-     * @return array
+     * @return Collection\Author
      */
     public function getAuthors()
     {
@@ -73,7 +68,7 @@ class Entry extends Extension\AbstractEntry
         }
 
         if (count($authors) == 0) {
-            $authors = null;
+            $authors = new Collection\Author();
         } else {
             $authors = new Collection\Author(
                 Reader\Reader::arrayUnique($authors)
@@ -108,20 +103,21 @@ class Entry extends Extension\AbstractEntry
                 case 'html':
                 case 'text/html':
                     $content = $el->nodeValue;
-                break;
+                    break;
                 case 'xhtml':
                     $this->getXpath()->registerNamespace('xhtml', 'http://www.w3.org/1999/xhtml');
                     $xhtml = $this->getXpath()->query(
                         $this->getXpathPrefix() . '/atom:content/xhtml:div'
                     )->item(0);
                     $d = new DOMDocument('1.0', $this->getEncoding());
-                    $xhtmls = $d->importNode($xhtml, true);
+                    $deep = version_compare(PHP_VERSION, '7', 'ge') ? 1 : true;
+                    $xhtmls = $d->importNode($xhtml, $deep);
                     $d->appendChild($xhtmls);
                     $content = $this->collectXhtml(
                         $d->saveXML(),
                         $d->lookupPrefix('http://www.w3.org/1999/xhtml')
                     );
-                break;
+                    break;
             }
         }
 
@@ -143,7 +139,9 @@ class Entry extends Extension\AbstractEntry
      */
     protected function collectXhtml($xhtml, $prefix)
     {
-        if (!empty($prefix)) $prefix = $prefix . ':';
+        if (!empty($prefix)) {
+            $prefix = $prefix . ':';
+        }
         $matches = array(
             "/<\?xml[^<]*>[^<]*<" . $prefix . "div[^<]*/",
             "/<\/" . $prefix . "div>\s*$/"
@@ -175,7 +173,7 @@ class Entry extends Extension\AbstractEntry
         }
 
         if ($dateCreated) {
-            $date = DateTime::createFromFormat(DateTime::ISO8601, $dateCreated);
+            $date = new DateTime($dateCreated);
         }
 
         $this->data['datecreated'] = $date;
@@ -203,7 +201,7 @@ class Entry extends Extension\AbstractEntry
         }
 
         if ($dateModified) {
-            $date = DateTime::createFromFormat(DateTime::ISO8601, $dateModified);
+            $date = new DateTime($dateModified);
         }
 
         $this->data['datemodified'] = $date;
@@ -299,9 +297,12 @@ class Entry extends Extension\AbstractEntry
             return $this->data['baseUrl'];
         }
 
-        $baseUrl = $this->getXpath()->evaluate('string('
-            . $this->getXpathPrefix() . '/@xml:base[1]'
-        . ')');
+        $baseUrl = $this->getXpath()->evaluate(
+            'string('
+            . $this->getXpathPrefix()
+            . '/@xml:base[1]'
+            . ')'
+        );
 
         if (!$baseUrl) {
             $baseUrl = $this->getXpath()->evaluate('string(//@xml:base[1])');
@@ -332,7 +333,7 @@ class Entry extends Extension\AbstractEntry
             return $this->data['links'][$index];
         }
 
-        return null;
+        return;
     }
 
     /**
@@ -399,7 +400,7 @@ class Entry extends Extension\AbstractEntry
     /**
      * Get the number of comments/replies for current entry
      *
-     * @return integer
+     * @return int
      */
     public function getCommentCount()
     {
@@ -553,10 +554,10 @@ class Entry extends Extension\AbstractEntry
      */
     protected function absolutiseUri($link)
     {
-        if (!Uri\UriFactory::factory($link)->isAbsolute()) {
+        if (!Uri::factory($link)->isAbsolute()) {
             if ($this->getBaseUrl() !== null) {
                 $link = $this->getBaseUrl() . $link;
-                if (!Uri\UriFactory::factory($link)->isValid()) {
+                if (!Uri::factory($link)->isValid()) {
                     $link = null;
                 }
             }
@@ -591,7 +592,7 @@ class Entry extends Extension\AbstractEntry
         }
 
         if (empty($author)) {
-            return null;
+            return;
         }
         return $author;
     }

@@ -3,19 +3,14 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Filter
  */
 
 namespace Zend\Filter;
 
 use Traversable;
 
-/**
- * @category   Zend
- * @package    Zend_Filter
- */
 class StringToUpper extends AbstractUnicode
 {
     /**
@@ -44,17 +39,24 @@ class StringToUpper extends AbstractUnicode
     /**
      * Defined by Zend\Filter\FilterInterface
      *
-     * Returns the string $value, converting characters to lowercase as necessary
+     * Returns the string $value, converting characters to uppercase as necessary
+     *
+     * If the value provided is non-scalar, the value will remain unfiltered
      *
      * @param  string $value
-     * @return string
+     * @return string|mixed
      */
     public function filter($value)
     {
-        if ($this->options['encoding'] !== null) {
-            return mb_strtoupper((string) $value,  $this->options['encoding']);
+        if (!is_scalar($value)) {
+            return $value;
+        }
+        $value = (string) $value;
+
+        if (null !== $this->getEncoding()) {
+            return mb_strtoupper($value, $this->options['encoding']);
         }
 
-        return strtoupper((string) $value);
+        return strtoupper($value);
     }
 }

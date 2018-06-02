@@ -3,35 +3,21 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Db
  */
 
 namespace Zend\Db\Adapter\Driver\Mysqli;
 
-use Zend\Db\Adapter\Driver\ConnectionInterface;
+use Zend\Db\Adapter\Driver\AbstractConnection;
 use Zend\Db\Adapter\Exception;
 
-/**
- * @category   Zend
- * @package    Zend_Db
- * @subpackage Adapter
- */
-class Connection implements ConnectionInterface
+class Connection extends AbstractConnection
 {
-
     /**
      * @var Mysqli
      */
     protected $driver = null;
-
-    /**
-     * Connection parameters
-     *
-     * @var array
-     */
-    protected $connectionParameters = array();
 
     /**
      * @var \mysqli
@@ -39,16 +25,9 @@ class Connection implements ConnectionInterface
     protected $resource = null;
 
     /**
-     * In transaction
-     *
-     * @var boolean
-     */
-    protected $inTransaction = false;
-
-    /**
      * Constructor
      *
-     * @param array|mysqli|null $connectionInfo
+     * @param  array|mysqli|null                                   $connectionInfo
      * @throws \Zend\Db\Adapter\Exception\InvalidArgumentException
      */
     public function __construct($connectionInfo = null)
@@ -63,41 +42,18 @@ class Connection implements ConnectionInterface
     }
 
     /**
-     * @param Mysqli $driver
-     * @return Connection
+     * @param  Mysqli $driver
+     * @return self
      */
     public function setDriver(Mysqli $driver)
     {
         $this->driver = $driver;
+
         return $this;
     }
 
     /**
-     * Set connection parameters
-     *
-     * @param  array $connectionParameters
-     * @return Connection
-     */
-    public function setConnectionParameters(array $connectionParameters)
-    {
-        $this->connectionParameters = $connectionParameters;
-        return $this;
-    }
-
-    /**
-     * Get connection parameters
-     *
-     * @return array
-     */
-    public function getConnectionParameters()
-    {
-        return $this->connectionParameters;
-    }
-
-    /**
-     * Get current schema
-     *
-     * @return string
+     * {@inheritDoc}
      */
     public function getCurrentSchema()
     {
@@ -108,55 +64,44 @@ class Connection implements ConnectionInterface
         /** @var $result \mysqli_result */
         $result = $this->resource->query('SELECT DATABASE()');
         $r = $result->fetch_row();
+
         return $r[0];
     }
 
     /**
      * Set resource
      *
-     * @param  mysqli $resource
-     * @return Connection
+     * @param  \mysqli $resource
+     * @return self
      */
-    public function setResource(mysqli $resource)
+    public function setResource(\mysqli $resource)
     {
         $this->resource = $resource;
+
         return $this;
     }
 
     /**
-     * Get resource
-     *
-     * @return \mysqli
-     */
-    public function getResource()
-    {
-        $this->connect();
-        return $this->resource;
-    }
-
-    /**
-     * Connect
-     *
-     * @throws Exception\RuntimeException
-     * @return null
+     * {@inheritDoc}
      */
     public function connect()
     {
         if ($this->resource instanceof \mysqli) {
-            return;
+            return $this;
         }
 
         // localize
         $p = $this->connectionParameters;
 
         // given a list of key names, test for existence in $p
-        $findParameterValue = function(array $names) use ($p) {
+        $findParameterValue = function (array $names) use ($p) {
             foreach ($names as $name) {
                 if (isset($p[$name])) {
                     return $p[$name];
                 }
             }
-            return null;
+
+            return;
         };
 
         $hostname = $findParameterValue(array('hostname', 'host'));
@@ -166,7 +111,23 @@ class Connection implements ConnectionInterface
         $port     = (isset($p['port'])) ? (int) $p['port'] : null;
         $socket   = (isset($p['socket'])) ? $p['socket'] : null;
 
-        $this->resource = new \Mysqli($hostname, $username, $password, $database, $port, $socket);
+        $this->resource = new \mysqli();
+        $this->resource->init();
+
+        if (!empty($p['driver_options'])) {
+            foreach ($p['driver_options'] as $option => $value) {
+                if (is_string($option)) {
+                    $option = strtoupper($option);
+                    if (!defined($option)) {
+                        continue;
+                    }
+                    $option = constant($option);
+                }
+                $this->resource->options($option, $value);
+            }
+        }
+
+        $this->resource->real_connect($hostname, $username, $password, $database, $port, $socket);
 
         if ($this->resource->connect_error) {
             throw new Exception\RuntimeException(
@@ -180,31 +141,30 @@ class Connection implements ConnectionInterface
             $this->resource->set_charset($p['charset']);
         }
 
+        return $this;
     }
 
     /**
-     * Is connected
-     *
-     * @return boolean
+     * {@inheritDoc}
      */
     public function isConnected()
     {
-        return ($this->resource instanceof \Mysqli);
+        return ($this->resource instanceof \mysqli);
     }
 
     /**
-     * Disconnect
+     * {@inheritDoc}
      */
     public function disconnect()
     {
-        if ($this->resource instanceof \PDO) {
+        if ($this->resource instanceof \mysqli) {
             $this->resource->close();
         }
-        unset($this->resource);
+        $this->resource = null;
     }
 
     /**
-     * Begin transaction
+     * {@inheritDoc}
      */
     public function beginTransaction()
     {
@@ -214,48 +174,50 @@ class Connection implements ConnectionInterface
 
         $this->resource->autocommit(false);
         $this->inTransaction = true;
-    }
 
-    /**
-     * Commit
-     */
-    public function commit()
-    {
-        if (!$this->resource) {
-            $this->connect();
-        }
-
-        $this->resource->commit();
-
-        $this->inTransaction = false;
-    }
-
-    /**
-     * Rollback
-     *
-     * @throws Exception\RuntimeException
-     * @return Connection
-     */
-    public function rollback()
-    {
-        if (!$this->resource) {
-            throw new Exception\RuntimeException('Must be connected before you can rollback.');
-        }
-
-        if (!$this->inTransaction) {
-            throw new Exception\RuntimeException('Must call commit() before you can rollback.');
-        }
-
-        $this->resource->rollback();
         return $this;
     }
 
     /**
-     * Execute
+     * {@inheritDoc}
+     */
+    public function commit()
+    {
+        if (!$this->isConnected()) {
+            $this->connect();
+        }
+
+        $this->resource->commit();
+        $this->inTransaction = false;
+        $this->resource->autocommit(true);
+
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function rollback()
+    {
+        if (!$this->isConnected()) {
+            throw new Exception\RuntimeException('Must be connected before you can rollback.');
+        }
+
+        if (!$this->inTransaction) {
+            throw new Exception\RuntimeException('Must call beginTransaction() before you can rollback.');
+        }
+
+        $this->resource->rollback();
+        $this->resource->autocommit(true);
+        $this->inTransaction = false;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
      *
-     * @param  string $sql
      * @throws Exception\InvalidQueryException
-     * @return Result
      */
     public function execute($sql)
     {
@@ -263,7 +225,15 @@ class Connection implements ConnectionInterface
             $this->connect();
         }
 
+        if ($this->profiler) {
+            $this->profiler->profilerStart($sql);
+        }
+
         $resultResource = $this->resource->query($sql);
+
+        if ($this->profiler) {
+            $this->profiler->profilerFinish($sql);
+        }
 
         // if the returnValue is something other than a mysqli_result, bypass wrapping it
         if ($resultResource === false) {
@@ -271,14 +241,12 @@ class Connection implements ConnectionInterface
         }
 
         $resultPrototype = $this->driver->createResult(($resultResource === true) ? $this->resource : $resultResource);
+
         return $resultPrototype;
     }
 
     /**
-     * Get last generated id
-     *
-     * @param  null $name Ignored
-     * @return integer
+     * {@inheritDoc}
      */
     public function getLastGeneratedValue($name = null)
     {

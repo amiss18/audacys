@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Http
  */
 
 namespace Zend\Http\Header\Accept\FieldValuePart;
@@ -14,18 +13,21 @@ namespace Zend\Http\Header\Accept\FieldValuePart;
  * Field Value Part
  *
  *
- * @category   Zend
- * @package    Zend\Http\Header
  * @see        http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.1
  */
 abstract class AbstractFieldValuePart
 {
-
     /**
      * Internal object used for value retrieval
      * @var object
      */
     private $internalValues;
+
+    /**
+     * A Field Value Part this Field Value Part matched against.
+     * @var AbstractFieldValuePart
+     */
+    protected $matchedAgainst;
 
     /**
      *
@@ -34,6 +36,28 @@ abstract class AbstractFieldValuePart
     public function __construct($internalValues)
     {
         $this->internalValues = $internalValues;
+    }
+
+    /**
+     * Set a Field Value Part this Field Value Part matched against.
+     *
+     * @param AbstractFieldValuePart $matchedAgainst
+     * @return AbstractFieldValuePart provides fluent interface
+     */
+    public function setMatchedAgainst(AbstractFieldValuePart $matchedAgainst)
+    {
+        $this->matchedAgainst = $matchedAgainst;
+        return $this;
+    }
+
+    /**
+     * Get a Field Value Part this Field Value Part matched against.
+     *
+     * @return AbstractFieldValuePart|null
+     */
+    public function getMatchedAgainst()
+    {
+        return $this->matchedAgainst;
     }
 
     /**
@@ -70,7 +94,7 @@ abstract class AbstractFieldValuePart
     }
 
     /**
-     * @return raw $raw
+     * @return string $raw
      */
     public function getRaw()
     {
@@ -86,5 +110,4 @@ abstract class AbstractFieldValuePart
     {
         return $this->getInternalValues()->$key;
     }
-
 }

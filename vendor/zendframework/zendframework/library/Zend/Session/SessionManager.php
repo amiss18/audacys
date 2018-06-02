@@ -3,21 +3,17 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Session
  */
 
 namespace Zend\Session;
 
 use Zend\EventManager\EventManagerInterface;
-use Zend\Session\SaveHandler\SaveHandlerInterface;
+use Zend\Stdlib\ArrayUtils;
 
 /**
  * Session ManagerInterface implementation utilizing ext/session
- *
- * @category   Zend
- * @package    Zend_Session
  */
 class SessionManager extends AbstractManager
 {
@@ -41,6 +37,25 @@ class SessionManager extends AbstractManager
      * @var EventManagerInterface Validation chain to determine if session is valid
      */
     protected $validatorChain;
+
+    /**
+     * Constructor
+     *
+     * @param  Config\ConfigInterface|null           $config
+     * @param  Storage\StorageInterface|null         $storage
+     * @param  SaveHandler\SaveHandlerInterface|null $saveHandler
+     * @param  array                                 $validators
+     * @throws Exception\RuntimeException
+     */
+    public function __construct(
+        Config\ConfigInterface $config = null,
+        Storage\StorageInterface $storage = null,
+        SaveHandler\SaveHandlerInterface $saveHandler = null,
+        array $validators = array()
+    ) {
+        parent::__construct($config, $storage, $saveHandler, $validators);
+        register_shutdown_function(array($this, 'writeClose'));
+    }
 
     /**
      * Does a session exist and is it currently active?
@@ -78,15 +93,24 @@ class SessionManager extends AbstractManager
         }
 
         $saveHandler = $this->getSaveHandler();
-        if ($saveHandler instanceof SaveHandlerInterface) {
+        if ($saveHandler instanceof SaveHandler\SaveHandlerInterface) {
             // register the session handler with ext/session
             $this->registerSaveHandler($saveHandler);
         }
 
-        session_start();
-        if (!$this->isValid()) {
-            throw new Exception\RuntimeException('Session failed validation');
+        $oldSessionData = array();
+        if (isset($_SESSION)) {
+            $oldSessionData = $_SESSION;
         }
+
+        session_start();
+
+        if ($oldSessionData instanceof \Traversable
+            || (! empty($oldSessionData) && is_array($oldSessionData))
+        ) {
+            $_SESSION = ArrayUtils::merge($oldSessionData, $_SESSION, true);
+        }
+
         $storage = $this->getStorage();
 
         // Since session is starting, we need to potentially repopulate our
@@ -96,6 +120,33 @@ class SessionManager extends AbstractManager
                 $storage->fromArray($_SESSION);
             }
             $_SESSION = $storage;
+        } elseif ($storage instanceof Storage\StorageInitializationInterface) {
+            $storage->init($_SESSION);
+        }
+
+        $this->initializeValidatorChain();
+
+        if (!$this->isValid()) {
+            throw new Exception\RuntimeException('Session validation failed');
+        }
+    }
+
+    /**
+     * Create validators, insert reference value and add them to the validator chain
+     */
+    protected function initializeValidatorChain()
+    {
+        $validatorChain  = $this->getValidatorChain();
+        $validatorValues = $this->getStorage()->getMetadata('_VALID');
+
+        foreach ($this->validators as $validator) {
+            // Ignore validators which are already present in Storage
+            if (is_array($validatorValues) && array_key_exists($validator, $validatorValues)) {
+                continue;
+            }
+
+            $validator = new $validator(null);
+            $validatorChain->attach('session.validate', array($validator, 'isValid'));
         }
     }
 
@@ -148,10 +199,12 @@ class SessionManager extends AbstractManager
         // flushed to the session handler. As such, we now mark the storage
         // object isImmutable.
         $storage  = $this->getStorage();
-        $_SESSION = (array) $storage;
-        session_write_close();
-        $storage->fromArray($_SESSION);
-        $storage->markImmutable();
+        if (!$storage->isImmutable()) {
+            $_SESSION = $storage->toArray(true);
+            session_write_close();
+            $storage->fromArray($_SESSION);
+            $storage->markImmutable();
+        }
     }
 
     /**
@@ -212,13 +265,10 @@ class SessionManager extends AbstractManager
      */
     public function setId($id)
     {
-        if (!$this->sessionExists()) {
-            session_id($id);
-            return $this;
+        if ($this->sessionExists()) {
+            throw new Exception\RuntimeException('Session has already been started, to change the session ID call regenerateId()');
         }
-        $this->destroy();
         session_id($id);
-        $this->start();
         return $this;
     }
 
@@ -319,8 +369,8 @@ class SessionManager extends AbstractManager
     public function isValid()
     {
         $validator = $this->getValidatorChain();
-        $responses = $validator->triggerUntil('session.validate', $this, array($this), function($test) {
-            return !$test;
+        $responses = $validator->trigger('session.validate', $this, array($this), function ($test) {
+            return false === $test;
         });
         if ($responses->stopped()) {
             // If execution was halted, validation failed
@@ -344,8 +394,8 @@ class SessionManager extends AbstractManager
             return;
         }
         setcookie(
-            $this->getName(),                 // session name
-            '',                               // value
+            $this->getName(), // session name
+            '', // value
             $_SERVER['REQUEST_TIME'] - 42000, // TTL for cookie
             $config->getCookiePath(),
             $config->getCookieDomain(),

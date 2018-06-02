@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Cache
  */
 
 namespace Zend\Cache\Pattern;
@@ -16,11 +15,6 @@ use Zend\Cache\StorageFactory;
 use Zend\Cache\Storage\StorageInterface as Storage;
 use Zend\Stdlib\AbstractOptions;
 
-/**
- * @category   Zend
- * @package    Zend_Cache
- * @subpackage Pattern
- */
 class PatternOptions extends AbstractOptions
 {
     /**
@@ -381,7 +375,7 @@ class PatternOptions extends AbstractOptions
             }
 
             // normalize
-            $umask = $umask & 0777;
+            $umask = $umask & ~0002;
         }
 
         $this->umask = $umask;
@@ -498,14 +492,14 @@ class PatternOptions extends AbstractOptions
      *
      * @param  mixed $object
      * @throws Exception\InvalidArgumentException
-     * @return $this
+     * @return PatternOptions
      */
     public function setObject($object)
     {
         if (!is_object($object)) {
-            throw new Exception\InvalidArgumentException(sprintf(
-                '%s expects an object; received "%s"', __METHOD__, gettype($object)
-            ));
+            throw new Exception\InvalidArgumentException(
+                sprintf('%s expects an object; received "%s"', __METHOD__, gettype($object))
+            );
         }
         $this->object = $object;
         return $this;
@@ -580,8 +574,8 @@ class PatternOptions extends AbstractOptions
      * Used by:
      * - ObjectCache
      *
-     * @param  mixed $objectKey
-     * @return $this
+     * @param  null|string $objectKey The object key or NULL to use the objects class name
+     * @return PatternOptions
      */
     public function setObjectKey($objectKey)
     {
@@ -599,11 +593,11 @@ class PatternOptions extends AbstractOptions
      * Used by:
      * - ObjectCache
      *
-     * @return mixed
+     * @return string
      */
     public function getObjectKey()
     {
-        if (!$this->objectKey) {
+        if ($this->objectKey === null) {
             return get_class($this->getObject());
         }
         return $this->objectKey;
@@ -660,7 +654,7 @@ class PatternOptions extends AbstractOptions
             );
         }
 
-        $this->publicDir = rtrim(realpath($publicDir), \DIRECTORY_SEPARATOR);
+        $this->publicDir = rtrim(realpath($publicDir), DIRECTORY_SEPARATOR);
         return $this;
     }
 

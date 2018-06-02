@@ -3,9 +3,8 @@
  * Zend Framework (http://framework.zend.com/)
  *
  * @link      http://github.com/zendframework/zf2 for the canonical source repository
- * @copyright Copyright (c) 2005-2012 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   http://framework.zend.com/license/new-bsd New BSD License
- * @package   Zend_Mail
  */
 
 namespace Zend\Mail\Header;
@@ -14,9 +13,6 @@ use Zend\Mail\Headers;
 
 /**
  * @todo       Allow setting date from DateTime, Zend\Date, or string
- * @category   Zend
- * @package    Zend_Mail
- * @subpackage Header
  */
 class Received implements HeaderInterface, MultipleHeadersInterface
 {
@@ -27,17 +23,25 @@ class Received implements HeaderInterface, MultipleHeadersInterface
 
     public static function fromString($headerLine)
     {
-        list($name, $value) = explode(': ', $headerLine, 2);
+        list($name, $value) = GenericHeader::splitHeaderLine($headerLine);
+        $value = HeaderWrap::mimeDecodeValue($value);
 
         // check to ensure proper header type for this factory
         if (strtolower($name) !== 'received') {
             throw new Exception\InvalidArgumentException('Invalid header line for Received string');
         }
 
-        $header = new static();
-        $header->value= $value;
+        $header = new static($value);
 
         return $header;
+    }
+
+    public function __construct($value = '')
+    {
+        if (! HeaderValue::isValid($value)) {
+            throw new Exception\InvalidArgumentException('Invalid Received value provided');
+        }
+        $this->value = $value;
     }
 
     public function getFieldName()
@@ -77,7 +81,7 @@ class Received implements HeaderInterface, MultipleHeadersInterface
     {
         $strings = array($this->toString());
         foreach ($headers as $header) {
-            if (!$header instanceof Received) {
+            if (! $header instanceof Received) {
                 throw new Exception\RuntimeException(
                     'The Received multiple header implementation can only accept an array of Received headers'
                 );
